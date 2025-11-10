@@ -1,16 +1,17 @@
 
 import React from 'react';
-import { ShoppingCartIcon, UserCircleIcon, Cog6ToothIcon } from './icons';
+import { ShoppingCartIcon, UserCircleIcon, Cog6ToothIcon, HeartIcon } from './icons';
 import { type View, type User } from '../types';
 
 interface HeaderProps {
   onNavigate: (view: View) => void;
   cartItemCount: number;
+  wishlistItemCount: number;
   user: User | null;
   onLogout: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onNavigate, cartItemCount, user, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ onNavigate, cartItemCount, wishlistItemCount, user, onLogout }) => {
   return (
     <header className="bg-freshpodd-blue/80 backdrop-blur-sm sticky top-0 z-50 shadow-lg">
       <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -42,6 +43,14 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, cartItemCount, user, onLogo
                   <Cog6ToothIcon className="h-7 w-7"/>
               </button>
             )}
+            {user && (
+                 <button onClick={() => onNavigate('wishlist')} className="relative text-gray-300 hover:text-white">
+                    <HeartIcon className="h-7 w-7" />
+                    {wishlistItemCount > 0 && (
+                        <span className="absolute -top-2 -right-2 bg-freshpodd-teal text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">{wishlistItemCount}</span>
+                    )}
+                 </button>
+            )}
             <button onClick={() => onNavigate('cart')} className="relative text-gray-300 hover:text-white">
               <ShoppingCartIcon className="h-7 w-7" />
               {cartItemCount > 0 && (
@@ -55,6 +64,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, cartItemCount, user, onLogo
                     </button>
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 hidden group-hover:block">
                         <div className="px-4 py-2 text-sm text-freshpodd-gray border-b">{user.name}</div>
+                        <a href="#" onClick={(e) => {e.preventDefault(); onNavigate('wishlist')}} className="block px-4 py-2 text-sm text-freshpodd-gray hover:bg-gray-100">Wishlist</a>
                         {user.isAdmin && <a href="#" onClick={(e) => {e.preventDefault(); onNavigate('admin')}} className="block px-4 py-2 text-sm text-freshpodd-gray hover:bg-gray-100 md:hidden">Admin</a>}
                         <a href="#" onClick={(e) => {e.preventDefault(); onLogout()}} className="block px-4 py-2 text-sm text-freshpodd-gray hover:bg-gray-100">Logout</a>
                     </div>

@@ -1,6 +1,6 @@
 import { type Chat } from "@google/genai";
 
-export type View = 'home' | 'product' | 'cart' | 'orders' | 'contact' | 'login' | 'returns' | 'admin';
+export type View = 'home' | 'product' | 'cart' | 'orders' | 'contact' | 'login' | 'returns' | 'admin' | 'landing' | 'wishlist';
 
 export interface User {
   id: string;
@@ -8,6 +8,7 @@ export interface User {
   email: string;
   password?: string;
   isAdmin?: boolean;
+  phone?: string;
 }
 
 export interface Product {
@@ -20,10 +21,11 @@ export interface Product {
   specs: { [key: string]: string };
   averageRating: number;
   reviewsCount: number;
+  stock: number;
 }
 
 export interface Review {
-  id: string;
+  id:string;
   author: string;
   rating: number;
   comment: string;
@@ -45,11 +47,13 @@ export interface Order {
   items: CartItem[];
   total: number;
   status: 'Processing' | 'Shipped' | 'Delivered';
+  paymentStatus: 'Paid' | 'Pending' | 'Refunded';
   shippingInfo: {
     address: string;
     city: string;
     postalCode: string;
     country: string;
+    phone: string;
   };
 }
 

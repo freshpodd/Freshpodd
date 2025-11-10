@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { type Order, type CartItem, type View } from '../types';
+import { ArrowLeftIcon } from './icons';
 
 interface OrdersPageProps {
   orders: Order[];
   onBuyAgain: (item: CartItem) => void;
   onNavigate: (view: View) => void;
+  onGoBack: () => void;
+  canGoBack: boolean;
 }
 
-const OrdersPage: React.FC<OrdersPageProps> = ({ orders, onBuyAgain, onNavigate }) => {
+const OrdersPage: React.FC<OrdersPageProps> = ({ orders, onBuyAgain, onNavigate, onGoBack, canGoBack }) => {
   const [trackingId, setTrackingId] = useState('');
   const [trackedOrder, setTrackedOrder] = useState<Order | null>(null);
   const [trackingError, setTrackingError] = useState('');
@@ -36,6 +39,12 @@ const OrdersPage: React.FC<OrdersPageProps> = ({ orders, onBuyAgain, onNavigate 
   return (
     <div className="min-h-screen bg-freshpodd-blue text-freshpodd-light py-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        {canGoBack && (
+            <button onClick={onGoBack} className="flex items-center space-x-2 text-freshpodd-teal hover:text-teal-400 mb-8 font-semibold">
+                <ArrowLeftIcon className="w-5 h-5" />
+                <span>Back</span>
+            </button>
+        )}
         <h1 className="text-4xl font-extrabold text-white mb-8">Your Orders</h1>
 
         {/* Order Tracking */}

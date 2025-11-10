@@ -9,12 +9,40 @@ import OrdersPage from './components/OrdersPage';
 import ContactPage from './components/ContactPage';
 import Chatbot from './components/Chatbot';
 import ReturnPolicyPage from './components/ReturnPolicyPage';
-import AdminPage from './components/AdminPage'; // Import AdminPage
+import AdminPage from './components/AdminPage';
+import LandingPage from './components/LandingPage';
+import LogoutConfirmationModal from './components/LogoutConfirmationModal';
+import BackToTopButton from './components/BackToTopButton';
+import WishlistPage from './components/WishlistPage';
 import { ChatBubbleIcon } from './components/icons';
 import { type View, type User, type Product, type CartItem, type Order } from './types';
 
 // Mock Data
 const MOCK_PRODUCTS_DATA: Product[] = [
+  {
+    id: 'FP004',
+    name: 'FreshPodd Go 75L',
+    description: 'Ultimate portability for your daily adventures. The FreshPodd Go is compact, lightweight, and perfect for keeping your food and drinks cold on day trips, at the beach, or in your vehicle.',
+    price: 799.99,
+    imageUrl: 'https://i.imgur.com/hR5h2aJ.jpeg',
+    features: [
+      'Detachable 50W Solar Panel',
+      '48-Hour Cooling on Full Charge',
+      'Lightweight & Compact Design',
+      'Simple Digital Controls',
+      'Shoulder Strap for Easy Carrying'
+    ],
+    specs: {
+      'Capacity': '75 Liters',
+      'Weight': '15 kg',
+      'Dimensions': '50cm x 40cm x 45cm',
+      'Cooling Range': '-18°C to 10°C',
+      'Battery': '25,000mAh Lithium-ion',
+    },
+    averageRating: 4.7,
+    reviewsCount: 115,
+    stock: 100,
+  },
   {
     id: 'FP001',
     name: 'FreshPodd Basic 150L',
@@ -36,7 +64,33 @@ const MOCK_PRODUCTS_DATA: Product[] = [
       'Battery': '45,000mAh Lithium-ion',
     },
     averageRating: 4.8,
-    reviewsCount: 88
+    reviewsCount: 88,
+    stock: 50,
+  },
+  {
+    id: 'FP002',
+    name: 'FreshPodd Adventurer 300L',
+    description: 'The perfect balance of capacity and portability. The Adventurer model is designed for serious enthusiasts who need more space and advanced features for extended trips off the grid.',
+    price: 1899.99,
+    imageUrl: 'https://i.imgur.com/wVAmZpL.jpeg',
+    features: [
+      'Integrated 150W Solar Panel',
+      '80-Hour Cooling on Full Charge',
+      'Upgraded All-Terrain Wheels',
+      'Digital Temperature Control with App Sync',
+      'USB-C & USB-A Charging Ports',
+      'Internal LED Lighting'
+    ],
+    specs: {
+      'Capacity': '300 Liters',
+      'Weight': '35 kg',
+      'Dimensions': '80cm x 55cm x 55cm',
+      'Cooling Range': '-20°C to 20°C',
+      'Battery': '60,000mAh Lithium-ion',
+    },
+    averageRating: 4.9,
+    reviewsCount: 62,
+    stock: 40,
   },
   {
     id: 'FP003',
@@ -61,27 +115,49 @@ const MOCK_PRODUCTS_DATA: Product[] = [
       'Battery': '90,000mAh Lithium-ion',
     },
     averageRating: 4.9,
-    reviewsCount: 45
+    reviewsCount: 45,
+    stock: 25,
   },
 ];
 
 const MOCK_USERS_DATA: User[] = [
-    { id: '1', name: 'Admin User', email: 'admin@example.com', password: 'adminpassword', isAdmin: true },
-    { id: '2', name: 'Test User', email: 'user@example.com', password: 'password123' },
+    { id: '1', name: 'Admin User', email: 'admin@example.com', password: 'adminpassword', isAdmin: true, phone: '555-0199' },
+    { id: '2', name: 'Test User', email: 'user@example.com', password: 'password123', phone: '555-0101' },
 ];
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<View>('home');
+  const [currentView, setCurrentView] = useState<View>('landing');
+  const [history, setHistory] = useState<View[]>(['landing']);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [wishlist, setWishlist] = useState<Product[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [notification, setNotification] = useState('');
   const [isBuyNowFlow, setIsBuyNowFlow] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
 
   // Convert mock data to state to allow for admin modifications
   const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS_DATA);
   const [users, setUsers] = useState<User[]>(MOCK_USERS_DATA);
   const [orders, setOrders] = useState<Order[]>([]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+        setShowBackToTop(window.scrollY > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+      window.scrollTo({
+          top: 0,
+          behavior: 'smooth',
+      });
+  };
 
   const showNotification = (message: string, isError = false) => {
     setNotification(message);
@@ -90,8 +166,23 @@ const App: React.FC = () => {
   };
   
   const handleNavigate = (view: View) => {
+    setHistory(prev => {
+        if (prev[prev.length - 1] === view) {
+            return prev; // Do not add duplicate consecutive views
+        }
+        return [...prev, view];
+    });
     setCurrentView(view);
     window.scrollTo(0, 0);
+  };
+
+  const handleGoBack = () => {
+    setHistory(prev => {
+        if (prev.length <= 1) return prev; // Cannot go back further
+        const newHistory = prev.slice(0, -1);
+        setCurrentView(newHistory[newHistory.length - 1]);
+        return newHistory;
+    });
   };
 
   const handleLogin = (credentials: { email: string; password: string; name?: string }) => {
@@ -111,12 +202,14 @@ const App: React.FC = () => {
       setUsers([...users, newUser]);
       setCurrentUser(newUser);
       setOrders([]); // Clear orders for new user
+      setWishlist([]); // Clear wishlist for new user
       handleNavigate('home');
       showNotification(`Welcome, ${newUser.name}!`);
     } else { // Login
       const foundUser = users.find(u => u.email === credentials.email && u.password === credentials.password);
       if (foundUser) {
         setCurrentUser(foundUser);
+        setWishlist([]); // Clear any guest wishlist
         // Mock loading orders for the logged-in user
         setOrders([
             { 
@@ -126,7 +219,8 @@ const App: React.FC = () => {
                 items: [{ product: products[0], quantity: 1 }], 
                 total: 1403.99, 
                 status: 'Shipped',
-                shippingInfo: { address: '123 Tech Lane', city: 'Silicon Valley', postalCode: '94043', country: 'USA' }
+                paymentStatus: 'Paid',
+                shippingInfo: { address: '123 Tech Lane', city: 'Silicon Valley', postalCode: '94043', country: 'USA', phone: '555-0101' }
             },
             { 
                 id: 'FP1007', 
@@ -135,10 +229,16 @@ const App: React.FC = () => {
                 items: [{ product: products[1], quantity: 1 }], 
                 total: 3239.99, 
                 status: 'Delivered',
-                shippingInfo: { address: '456 Innovation Ave', city: 'Austin', postalCode: '73301', country: 'USA' }
+                paymentStatus: 'Paid',
+                shippingInfo: { address: '456 Innovation Ave', city: 'Austin', postalCode: '73301', country: 'USA', phone: '555-0101' }
             }
         ].filter(order => foundUser.isAdmin || order.user.id === foundUser.id)); // Admins see all orders
-        handleNavigate('home');
+        
+        if (foundUser.isAdmin) {
+          handleNavigate('admin');
+        } else {
+          handleNavigate('home');
+        }
         showNotification(`Welcome back, ${foundUser.name}!`);
       } else {
         showNotification('Invalid email or password.', true);
@@ -146,11 +246,21 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
+  const handleInitiateLogout = () => {
+    setIsLogoutModalOpen(true);
+  };
+
+  const handleCancelLogout = () => {
+    setIsLogoutModalOpen(false);
+  };
+
+  const handleConfirmLogout = () => {
     setCurrentUser(null);
     setOrders([]);
+    setWishlist([]);
     handleNavigate('home');
     showNotification('You have been logged out.');
+    setIsLogoutModalOpen(false);
   };
 
   const addToCart = (item: CartItem, showNotif = true) => {
@@ -174,12 +284,52 @@ const App: React.FC = () => {
     setCart(cart.map(item => item.product.id === productId ? { ...item, quantity } : item));
   };
   
+  const handleToggleWishlist = (productId: string) => {
+    if (!currentUser) {
+        handleNavigate('login');
+        showNotification('Please log in to manage your wishlist.', true);
+        return;
+    }
+    setWishlist(prev => {
+        const exists = prev.find(p => p.id === productId);
+        if (exists) {
+            showNotification('Removed from wishlist.');
+            return prev.filter(p => p.id !== productId);
+        } else {
+            const productToAdd = products.find(p => p.id === productId);
+            if (productToAdd) {
+                showNotification('Added to wishlist!');
+                return [...prev, productToAdd];
+            }
+            return prev;
+        }
+    });
+  };
+
   const handleCheckout = () => {
     if (!currentUser) {
         handleNavigate('login');
         showNotification('Please log in to proceed with checkout.', true);
         return;
     }
+
+    // Decrement stock
+    let canFulfill = true;
+    const newProducts = [...products];
+    cart.forEach(item => {
+        const productIndex = newProducts.findIndex(p => p.id === item.product.id);
+        if (productIndex !== -1 && newProducts[productIndex].stock >= item.quantity) {
+            newProducts[productIndex].stock -= item.quantity;
+        } else {
+            canFulfill = false;
+        }
+    });
+
+    if (!canFulfill) {
+        showNotification('Error: Not enough stock for one or more items.', true);
+        return;
+    }
+
     const newOrder: Order = {
         id: `FP${1025 + orders.length}`,
         date: new Date().toISOString().split('T')[0],
@@ -187,8 +337,11 @@ const App: React.FC = () => {
         items: cart,
         total: cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0) * 1.08,
         status: 'Processing',
-        shippingInfo: { address: '789 User Street', city: 'Anytown', postalCode: '12345', country: 'USA' }
+        paymentStatus: 'Paid', // Assume payment is successful on checkout
+        shippingInfo: { address: '789 User Street', city: 'Anytown', postalCode: '12345', country: 'USA', phone: currentUser.phone || 'N/A' }
     };
+
+    setProducts(newProducts);
     setOrders([newOrder, ...orders]);
     setCart([]);
     handleNavigate('orders');
@@ -201,9 +354,10 @@ const App: React.FC = () => {
   };
   
   // Admin handlers
-  const handleUpdateOrderStatus = (orderId: string, status: Order['status']) => {
-    setOrders(orders.map(o => o.id === orderId ? { ...o, status } : o));
-    showNotification(`Order #${orderId} status updated to ${status}.`);
+  const handleUpdateOrder = (orderId: string, updates: Partial<Pick<Order, 'status' | 'paymentStatus'>>) => {
+      setOrders(orders.map(o => o.id === orderId ? { ...o, ...updates } : o));
+      const updateMessage = updates.status ? `status updated to ${updates.status}` : `payment status updated to ${updates.paymentStatus}`;
+      showNotification(`Order #${orderId} ${updateMessage}.`);
   };
 
   const handleUpdateProduct = (updatedProduct: Product) => {
@@ -229,33 +383,42 @@ const App: React.FC = () => {
 
 
   const renderView = () => {
+    const canGoBack = history.length > 1;
     switch (currentView) {
+      case 'landing':
+        return <LandingPage onNavigate={handleNavigate} />;
       case 'home':
-        return <HomePage onNavigate={handleNavigate} />;
+        return <HomePage onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} />;
       case 'product':
-        return <ProductPage products={products} onAddToCart={addToCart} onBuyNow={handleBuyNow} />;
+        return <ProductPage products={products} onAddToCart={addToCart} onBuyNow={handleBuyNow} onGoBack={handleGoBack} canGoBack={canGoBack} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} currentUser={currentUser} />;
       case 'cart':
-        return <CartPage cartItems={cart} onRemoveItem={removeFromCart} onUpdateQuantity={updateCartQuantity} onCheckout={handleCheckout} onNavigate={handleNavigate} />;
+        return <CartPage cartItems={cart} onRemoveItem={removeFromCart} onUpdateQuantity={updateCartQuantity} onCheckout={handleCheckout} onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} />;
       case 'orders':
          if (!currentUser) {
             handleNavigate('login');
             return null;
          }
-        return <OrdersPage orders={orders.filter(o => currentUser.isAdmin || o.user.id === currentUser.id)} onBuyAgain={addToCart} onNavigate={handleNavigate} />;
+        return <OrdersPage orders={orders.filter(o => currentUser.isAdmin || o.user.id === currentUser.id)} onBuyAgain={addToCart} onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} />;
       case 'contact':
-        return <ContactPage />;
+        return <ContactPage onGoBack={handleGoBack} canGoBack={canGoBack} />;
       case 'login':
-        return <LoginPage onLogin={handleLogin} />;
+        return <LoginPage onLogin={handleLogin} onGoBack={handleGoBack} canGoBack={canGoBack} />;
       case 'returns':
-        return <ReturnPolicyPage />;
+        return <ReturnPolicyPage onGoBack={handleGoBack} canGoBack={canGoBack} />;
+      case 'wishlist':
+        if (!currentUser) {
+            handleNavigate('login');
+            return null;
+        }
+        return <WishlistPage wishlistItems={wishlist} onAddToCart={addToCart} onToggleWishlist={handleToggleWishlist} onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} />;
       case 'admin':
         if (!currentUser?.isAdmin) {
             handleNavigate('home');
             return null;
         }
-        return <AdminPage users={users} orders={orders} products={products} onUpdateOrderStatus={handleUpdateOrderStatus} onUpdateProduct={handleUpdateProduct} onDeleteUser={handleDeleteUser} />;
+        return <AdminPage users={users} orders={orders} products={products} onUpdateOrder={handleUpdateOrder} onUpdateProduct={handleUpdateProduct} onDeleteUser={handleDeleteUser} onGoBack={handleGoBack} canGoBack={canGoBack} />;
       default:
-        return <HomePage onNavigate={handleNavigate} />;
+        return <LandingPage onNavigate={handleNavigate} />;
     }
   };
   
@@ -263,14 +426,14 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-freshpodd-blue">
-      <Header onNavigate={handleNavigate} cartItemCount={cartItemCount} user={currentUser} onLogout={handleLogout}/>
+      {currentView !== 'landing' && <Header onNavigate={handleNavigate} cartItemCount={cartItemCount} wishlistItemCount={wishlist.length} user={currentUser} onLogout={handleInitiateLogout}/>}
       <main className="flex-grow">
         {renderView()}
       </main>
-      <Footer onNavigate={handleNavigate} />
+      {currentView !== 'landing' && <Footer onNavigate={handleNavigate} />}
       <Chatbot isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
-      {!isChatOpen && (
-        <button onClick={() => setIsChatOpen(true)} className="fixed bottom-6 right-6 bg-freshpodd-teal text-white p-4 rounded-full shadow-lg hover:bg-teal-500 transition-transform transform hover:scale-110">
+       {currentView !== 'landing' && !isChatOpen && (
+        <button onClick={() => setIsChatOpen(true)} className="fixed bottom-6 right-6 bg-freshpodd-teal text-white p-4 rounded-full shadow-lg hover:bg-teal-500 transition-transform transform hover:scale-110 z-50">
             <ChatBubbleIcon className="w-8 h-8"/>
         </button>
       )}
@@ -279,6 +442,12 @@ const App: React.FC = () => {
             {notification}
         </div>
       )}
+      <LogoutConfirmationModal
+        isOpen={isLogoutModalOpen}
+        onConfirm={handleConfirmLogout}
+        onCancel={handleCancelLogout}
+      />
+      {currentView !== 'landing' && <BackToTopButton isVisible={showBackToTop} onClick={scrollToTop} />}
       <style>{`
         @keyframes fade-in-out {
             0% { opacity: 0; transform: translateY(-20px); }

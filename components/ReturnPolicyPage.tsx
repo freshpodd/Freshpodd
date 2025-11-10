@@ -1,9 +1,21 @@
 import React from 'react';
+import { ArrowLeftIcon } from './icons';
 
-const ReturnPolicyPage: React.FC = () => {
+interface ReturnPolicyPageProps {
+    onGoBack: () => void;
+    canGoBack: boolean;
+}
+
+const ReturnPolicyPage: React.FC<ReturnPolicyPageProps> = ({ onGoBack, canGoBack }) => {
     return (
         <div className="min-h-screen bg-freshpodd-blue text-freshpodd-light py-12">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                {canGoBack && (
+                    <button onClick={onGoBack} className="flex items-center space-x-2 text-freshpodd-teal hover:text-teal-400 mb-8 font-semibold">
+                        <ArrowLeftIcon className="w-5 h-5" />
+                        <span>Back</span>
+                    </button>
+                )}
                 <div className="max-w-3xl mx-auto bg-freshpodd-gray/20 p-8 md:p-12 rounded-lg shadow-lg">
                     <h1 className="text-4xl font-extrabold text-white mb-6 text-center">Return Policy</h1>
                     <div className="space-y-4 text-gray-300 leading-relaxed prose prose-invert prose-lg max-w-none">

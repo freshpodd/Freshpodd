@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { type User } from '../types';
+import { ArrowLeftIcon } from './icons';
 
 interface LoginPageProps {
   onLogin: (credentials: { email: string; password: string; name?: string }) => void;
+  onGoBack: () => void;
+  canGoBack: boolean;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onGoBack, canGoBack }) => {
   const [isLoginView, setIsLoginView] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,7 +37,15 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-freshpodd-blue py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-freshpodd-blue py-12 px-4 sm:px-6 lg:px-8 relative">
+       <div className="absolute top-8 left-8">
+        {canGoBack && (
+            <button onClick={onGoBack} className="flex items-center space-x-2 text-freshpodd-teal hover:text-teal-400 font-semibold">
+                <ArrowLeftIcon className="w-5 h-5" />
+                <span>Back</span>
+            </button>
+        )}
+      </div>
       <div className="max-w-md w-full space-y-8 bg-freshpodd-gray/20 p-10 rounded-xl shadow-lg">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-white">

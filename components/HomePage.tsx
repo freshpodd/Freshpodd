@@ -1,9 +1,11 @@
 import React from 'react';
 import { type View } from '../types';
-import { StarIcon } from './icons';
+import { StarIcon, ArrowLeftIcon } from './icons';
 
 interface HomePageProps {
   onNavigate: (view: View) => void;
+  onGoBack: () => void;
+  canGoBack: boolean;
 }
 
 const testimonials = [
@@ -20,9 +22,19 @@ const FeatureCard: React.FC<{ icon: string; title: string; description: string }
   </div>
 );
 
-const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
+const HomePage: React.FC<HomePageProps> = ({ onNavigate, onGoBack, canGoBack }) => {
   return (
     <div className="text-white">
+      {canGoBack && (
+          <div className="bg-freshpodd-blue">
+              <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+                  <button onClick={onGoBack} className="flex items-center space-x-2 text-freshpodd-teal hover:text-teal-400 font-semibold z-20 relative">
+                      <ArrowLeftIcon className="w-5 h-5" />
+                      <span>Back</span>
+                  </button>
+              </div>
+          </div>
+      )}
       {/* Hero Section */}
       <section className="relative h-[70vh] min-h-[500px] flex items-center justify-center text-center px-4">
         <div className="absolute inset-0 bg-black opacity-50 z-0"></div>

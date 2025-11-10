@@ -1,7 +1,12 @@
-
 import React, { useState } from 'react';
+import { ArrowLeftIcon } from './icons';
 
-const ContactPage: React.FC = () => {
+interface ContactPageProps {
+    onGoBack: () => void;
+    canGoBack: boolean;
+}
+
+const ContactPage: React.FC<ContactPageProps> = ({ onGoBack, canGoBack }) => {
     const [submitted, setSubmitted] = useState(false);
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -12,6 +17,12 @@ const ContactPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-freshpodd-blue text-freshpodd-light py-12">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                 {canGoBack && (
+                    <button onClick={onGoBack} className="flex items-center space-x-2 text-freshpodd-teal hover:text-teal-400 mb-8 font-semibold">
+                        <ArrowLeftIcon className="w-5 h-5" />
+                        <span>Back</span>
+                    </button>
+                )}
                 <div className="max-w-3xl mx-auto text-center">
                     <h1 className="text-4xl font-extrabold text-white mb-4">Get In Touch</h1>
                     <p className="text-lg text-gray-300 mb-12">Have questions? We'd love to hear from you. Fill out the form below or reach out to us via our support channels.</p>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { type CartItem, type View } from '../types';
+import { ArrowLeftIcon } from './icons';
 
 interface CartPageProps {
   cartItems: CartItem[];
@@ -7,9 +8,11 @@ interface CartPageProps {
   onUpdateQuantity: (productId: string, quantity: number) => void;
   onCheckout: () => void;
   onNavigate: (view: View) => void;
+  onGoBack: () => void;
+  canGoBack: boolean;
 }
 
-const CartPage: React.FC<CartPageProps> = ({ cartItems, onRemoveItem, onUpdateQuantity, onCheckout, onNavigate }) => {
+const CartPage: React.FC<CartPageProps> = ({ cartItems, onRemoveItem, onUpdateQuantity, onCheckout, onNavigate, onGoBack, canGoBack }) => {
   const subtotal = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
   const tax = subtotal * 0.08;
   const total = subtotal + tax;
@@ -17,6 +20,12 @@ const CartPage: React.FC<CartPageProps> = ({ cartItems, onRemoveItem, onUpdateQu
   return (
     <div className="min-h-screen bg-freshpodd-blue text-freshpodd-light py-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        {canGoBack && (
+            <button onClick={onGoBack} className="flex items-center space-x-2 text-freshpodd-teal hover:text-teal-400 mb-8 font-semibold">
+                <ArrowLeftIcon className="w-5 h-5" />
+                <span>Back</span>
+            </button>
+        )}
         <h1 className="text-4xl font-extrabold text-white mb-8">Your Cart</h1>
         {cartItems.length === 0 ? (
           <div className="text-center py-20 bg-freshpodd-gray/20 rounded-lg">
