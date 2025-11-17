@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { ShoppingCartIcon, UserCircleIcon, Cog6ToothIcon, HeartIcon } from './icons';
-import { type View, type User } from '../types';
+import { type View, type User, type Currency } from '../types';
 
 interface HeaderProps {
   onNavigate: (view: View) => void;
@@ -9,9 +9,11 @@ interface HeaderProps {
   wishlistItemCount: number;
   user: User | null;
   onLogout: () => void;
+  currency: Currency;
+  onCurrencyChange: (currency: Currency) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onNavigate, cartItemCount, wishlistItemCount, user, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ onNavigate, cartItemCount, wishlistItemCount, user, onLogout, currency, onCurrencyChange }) => {
   return (
     <header className="bg-freshpodd-blue/80 backdrop-blur-sm sticky top-0 z-50 shadow-lg">
       <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -29,6 +31,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, cartItemCount, wishlistItem
               <div className="flex items-baseline space-x-4">
                 <a href="#" onClick={(e) => {e.preventDefault(); onNavigate('home')}} className="text-gray-300 hover:bg-freshpodd-gray hover:text-white px-3 py-2 rounded-md text-sm font-medium">Home</a>
                 <a href="#" onClick={(e) => {e.preventDefault(); onNavigate('product')}} className="text-gray-300 hover:bg-freshpodd-gray hover:text-white px-3 py-2 rounded-md text-sm font-medium">Product</a>
+                <a href="#" onClick={(e) => {e.preventDefault(); onNavigate('quote')}} className="text-gray-300 hover:bg-freshpodd-gray hover:text-white px-3 py-2 rounded-md text-sm font-medium">Custom Quote</a>
                 <a href="#" onClick={(e) => {e.preventDefault(); onNavigate('contact')}} className="text-gray-300 hover:bg-freshpodd-gray hover:text-white px-3 py-2 rounded-md text-sm font-medium">Contact</a>
                 {user && <a href="#" onClick={(e) => {e.preventDefault(); onNavigate('orders')}} className="text-gray-300 hover:bg-freshpodd-gray hover:text-white px-3 py-2 rounded-md text-sm font-medium">My Orders</a>}
               </div>
@@ -37,6 +40,17 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, cartItemCount, wishlistItem
           <div className="flex items-center space-x-4">
             <div className="hidden md:block">
               <input type="text" placeholder="Search..." className="bg-freshpodd-gray/50 text-white placeholder-gray-400 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-freshpodd-teal" />
+            </div>
+             <div className="hidden md:block">
+                <select 
+                    value={currency} 
+                    onChange={(e) => onCurrencyChange(e.target.value as Currency)}
+                    className="bg-freshpodd-gray/50 text-white placeholder-gray-400 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-freshpodd-teal appearance-none"
+                    aria-label="Select currency"
+                >
+                    <option value="USD">USD ($)</option>
+                    <option value="INR">INR (₹)</option>
+                </select>
             </div>
              {user?.isAdmin && (
               <button onClick={() => onNavigate('admin')} className="hidden md:block text-gray-300 hover:text-white" title="Admin Dashboard">

@@ -28,6 +28,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         </div>
         <div className="mt-8 pt-8 border-t border-gray-700 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-gray-400">
             <a href="#" onClick={(e) => {e.preventDefault(); onNavigate('contact')}} className="hover:text-white transition-colors">Contact Us</a>
+            <a href="#" onClick={(e) => {e.preventDefault(); onNavigate('quote')}} className="hover:text-white transition-colors">Request a Quote</a>
             <a href="#" onClick={(e) => {e.preventDefault(); onNavigate('returns')}} className="hover:text-white transition-colors">Return Policy</a>
             <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
             <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>

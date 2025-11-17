@@ -1,15 +1,16 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { createChatSession, sendMessageToGemini } from '../services/geminiService';
-import { type ChatMessage, type GeminiChatSession } from '../types';
+import { type ChatMessage, type GeminiChatSession, type Currency } from '../types';
 import { PaperAirplaneIcon, XMarkIcon, ChatBubbleIcon, UserCircleIcon } from './icons';
 
 interface ChatbotProps {
   isOpen: boolean;
   onClose: () => void;
+  currency: Currency;
 }
 
-const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
+const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, currency }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -18,14 +19,14 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen && !geminiSessionRef.current) {
-        geminiSessionRef.current = createChatSession();
+        geminiSessionRef.current = createChatSession(currency);
         setMessages([{
             id: 'initial',
             role: 'model',
             text: "Hi! I'm FreshBot. How can I help you with FreshPodd today?",
         }]);
     }
-  }, [isOpen]);
+  }, [isOpen, currency]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

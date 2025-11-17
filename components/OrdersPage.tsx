@@ -8,9 +8,10 @@ interface OrdersPageProps {
   onNavigate: (view: View) => void;
   onGoBack: () => void;
   canGoBack: boolean;
+  formatPrice: (price: number) => string;
 }
 
-const OrdersPage: React.FC<OrdersPageProps> = ({ orders, onBuyAgain, onNavigate, onGoBack, canGoBack }) => {
+const OrdersPage: React.FC<OrdersPageProps> = ({ orders, onBuyAgain, onNavigate, onGoBack, canGoBack, formatPrice }) => {
   const [trackingId, setTrackingId] = useState('');
   const [trackedOrder, setTrackedOrder] = useState<Order | null>(null);
   const [trackingError, setTrackingError] = useState('');
@@ -66,7 +67,7 @@ const OrdersPage: React.FC<OrdersPageProps> = ({ orders, onBuyAgain, onNavigate,
               <h3 className="text-xl font-semibold">Tracking result for Order #{trackedOrder.id}</h3>
               <p className="mt-2">Date: {trackedOrder.date}</p>
               <p className="mt-2">Status: <span className={`font-bold ${getStatusColor(trackedOrder.status)}`}>{trackedOrder.status}</span></p>
-              <p className="mt-2">Total: ${trackedOrder.total.toFixed(2)}</p>
+              <p className="mt-2">Total: {formatPrice(trackedOrder.total)}</p>
             </div>
           )}
         </div>
@@ -82,7 +83,7 @@ const OrdersPage: React.FC<OrdersPageProps> = ({ orders, onBuyAgain, onNavigate,
                   <p className="text-sm text-gray-400">Placed on {order.date}</p>
                 </div>
                 <div className="text-left sm:text-right mt-2 sm:mt-0">
-                  <p className="text-gray-300">Total: <span className="font-bold text-white">${order.total.toFixed(2)}</span></p>
+                  <p className="text-gray-300">Total: <span className="font-bold text-white">{formatPrice(order.total)}</span></p>
                   <p>Status: <span className={`font-bold ${getStatusColor(order.status)}`}>{order.status}</span></p>
                 </div>
               </div>

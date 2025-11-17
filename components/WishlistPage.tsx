@@ -9,9 +9,10 @@ interface WishlistPageProps {
   onNavigate: (view: View) => void;
   onGoBack: () => void;
   canGoBack: boolean;
+  formatPrice: (price: number) => string;
 }
 
-const WishlistPage: React.FC<WishlistPageProps> = ({ wishlistItems, onToggleWishlist, onAddToCart, onNavigate, onGoBack, canGoBack }) => {
+const WishlistPage: React.FC<WishlistPageProps> = ({ wishlistItems, onToggleWishlist, onAddToCart, onNavigate, onGoBack, canGoBack, formatPrice }) => {
 
   const handleAddToCart = (product: Product) => {
     onAddToCart({ product, quantity: 1 });
@@ -52,7 +53,7 @@ const WishlistPage: React.FC<WishlistPageProps> = ({ wishlistItems, onToggleWish
                     <h3 className="text-xl font-bold text-white mb-2">{product.name}</h3>
                     <p className="text-gray-400 text-sm mb-4 flex-grow">{product.description.substring(0, 100)}...</p>
                     <div className="flex justify-between items-center mt-auto">
-                        <span className="text-2xl font-bold text-white">${product.price.toFixed(2)}</span>
+                        <span className="text-2xl font-bold text-white">{formatPrice(product.price)}</span>
                     </div>
                 </div>
                 <div className="p-4 bg-freshpodd-gray/30 border-t border-freshpodd-gray/50 grid grid-cols-2 gap-2">
@@ -63,13 +64,19 @@ const WishlistPage: React.FC<WishlistPageProps> = ({ wishlistItems, onToggleWish
                         <HeartIcon solid className="w-5 h-5" />
                         <span>Remove</span>
                     </button>
-                    <button 
-                        onClick={() => handleAddToCart(product)}
-                        className="flex items-center justify-center space-x-2 bg-freshpodd-teal/20 text-freshpodd-teal hover:bg-freshpodd-teal hover:text-white font-semibold py-2 px-4 rounded-md text-sm transition-colors"
-                    >
-                         <ShoppingCartIcon className="w-5 h-5" />
-                        <span>Add to Cart</span>
-                    </button>
+                    {product.stock > 0 ? (
+                        <button 
+                            onClick={() => handleAddToCart(product)}
+                            className="flex items-center justify-center space-x-2 bg-freshpodd-teal/20 text-freshpodd-teal hover:bg-freshpodd-teal hover:text-white font-semibold py-2 px-4 rounded-md text-sm transition-colors"
+                        >
+                             <ShoppingCartIcon className="w-5 h-5" />
+                            <span>Add to Cart</span>
+                        </button>
+                    ) : (
+                        <div className="flex items-center justify-center bg-freshpodd-gray text-red-400 font-semibold py-2 px-4 rounded-md text-sm cursor-not-allowed">
+                            Out of Stock
+                        </div>
+                    )}
                 </div>
               </div>
             ))}

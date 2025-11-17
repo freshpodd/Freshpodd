@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { type Product, type CartItem, type User } from '../types';
+import { type Product, type CartItem, type User, type Currency } from '../types';
 import { StarIcon, XMarkIcon, PlusIcon, MinusIcon, ArrowLeftIcon, HeartIcon, ChevronLeftIcon, ChevronRightIcon } from './icons';
+import StockNotificationModal from './StockNotificationModal';
 
 interface ProductPageProps {
   products: Product[];
@@ -11,6 +12,9 @@ interface ProductPageProps {
   wishlist: Product[];
   onToggleWishlist: (productId: string) => void;
   currentUser: User | null;
+  formatPrice: (price: number) => string;
+  conversionRate: number;
+  onStockNotificationSignup: (productId: string, email: string) => void;
 }
 
 const ITEMS_PER_PAGE = 9;
@@ -22,9 +26,12 @@ const ProductDetailModal: React.FC<{
     isWishlisted: boolean;
     onToggleWishlist: (productId: string) => void;
     currentUser: User | null;
-}> = ({ product, onAddToCart, onClose, isWishlisted, onToggleWishlist, currentUser }) => {
+    formatPrice: (price: number) => string;
+    onStockNotificationSignup: (productId: string, email: string) => void;
+}> = ({ product, onAddToCart, onClose, isWishlisted, onToggleWishlist, currentUser, formatPrice, onStockNotificationSignup }) => {
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'description' | 'features' | 'specs'>('description');
+  const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false);
 
   const handleAddToCart = () => {
     onAddToCart({ product, quantity });
@@ -57,7 +64,7 @@ const ProductDetailModal: React.FC<{
                 </div>
                 <span className="ml-2 text-gray-300 text-sm">{product.averageRating.toFixed(1)} ({product.reviewsCount} reviews)</span>
               </div>
-              <p className="text-3xl font-bold text-white mb-6">${product.price.toFixed(2)}</p>
+              <p className="text-3xl font-bold text-white mb-6">{formatPrice(product.price)}</p>
               
               <div className="border-b border-freshpodd-gray mb-4">
                   <nav className="-mb-px flex space-x-6" aria-label="Tabs">
@@ -73,29 +80,54 @@ const ProductDetailModal: React.FC<{
               </div>
 
               <div className="mt-auto pt-6">
-                <div className="flex items-center gap-4 mb-4">
-                  <p className="font-semibold text-white">Quantity:</p>
-                  <div className="flex items-center border border-gray-600 rounded-md bg-freshpodd-gray">
-                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="p-2 text-gray-300 hover:bg-freshpodd-gray/50 rounded-l-md"><MinusIcon className="w-5 h-5"/></button>
-                    <input type="text" value={quantity} readOnly className="w-12 text-center text-white bg-transparent border-x border-gray-600 focus:outline-none"/>
-                    <button onClick={() => setQuantity(q => q + 1)} className="p-2 text-gray-300 hover:bg-freshpodd-gray/50 rounded-r-md"><PlusIcon className="w-5 h-5"/></button>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                    <button onClick={handleAddToCart} className="w-full bg-freshpodd-teal hover:bg-teal-500 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105 duration-300">
-                      Add to Cart
-                    </button>
-                    {currentUser && (
-                        <button onClick={() => onToggleWishlist(product.id)} className="p-3 border-2 border-freshpodd-teal rounded-lg hover:bg-freshpodd-teal/20 transition-colors">
-                            <HeartIcon solid={isWishlisted} className={`w-6 h-6 ${isWishlisted ? 'text-freshpodd-teal' : 'text-gray-300'}`} />
+                {product.stock > 0 ? (
+                    <>
+                        <div className="flex items-center gap-4 mb-4">
+                            <p className="font-semibold text-white">Quantity:</p>
+                            <div className="flex items-center border border-gray-600 rounded-md bg-freshpodd-gray">
+                                <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="p-2 text-gray-300 hover:bg-freshpodd-gray/50 rounded-l-md"><MinusIcon className="w-5 h-5"/></button>
+                                <input type="text" value={quantity} readOnly className="w-12 text-center text-white bg-transparent border-x border-gray-600 focus:outline-none"/>
+                                <button onClick={() => setQuantity(q => q + 1)} className="p-2 text-gray-300 hover:bg-freshpodd-gray/50 rounded-r-md"><PlusIcon className="w-5 h-5"/></button>
+                            </div>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                            <button onClick={handleAddToCart} className="w-full bg-freshpodd-teal hover:bg-teal-500 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105 duration-300">
+                              Add to Cart
+                            </button>
+                            {currentUser && (
+                                <button onClick={() => onToggleWishlist(product.id)} className="p-3 border-2 border-freshpodd-teal rounded-lg hover:bg-freshpodd-teal/20 transition-colors">
+                                    <HeartIcon solid={isWishlisted} className={`w-6 h-6 ${isWishlisted ? 'text-freshpodd-teal' : 'text-gray-300'}`} />
+                                </button>
+                            )}
+                        </div>
+                    </>
+                ) : (
+                    <div className="text-center">
+                        <p className="text-lg text-red-400 font-semibold mb-4">Currently Out of Stock</p>
+                        <button
+                            onClick={() => setIsNotifyModalOpen(true)}
+                            className="w-full bg-freshpodd-blue border-2 border-freshpodd-teal text-freshpodd-teal font-bold py-3 px-6 rounded-lg text-lg transition-all duration-300 hover:bg-freshpodd-teal hover:text-white"
+                        >
+                            Notify Me When Available
                         </button>
-                    )}
-                </div>
+                    </div>
+                )}
               </div>
             </div>
           </div>
         </main>
       </div>
+       {isNotifyModalOpen && (
+            <StockNotificationModal
+                productName={product.name}
+                currentUser={currentUser}
+                onClose={() => setIsNotifyModalOpen(false)}
+                onSignup={(email) => {
+                    onStockNotificationSignup(product.id, email);
+                    setIsNotifyModalOpen(false);
+                }}
+            />
+        )}
     </div>
   );
 };
@@ -107,7 +139,8 @@ const ProductCard: React.FC<{
     isWishlisted: boolean;
     onToggleWishlist: (productId: string) => void;
     currentUser: User | null;
-}> = ({ product, onSelect, isWishlisted, onToggleWishlist, currentUser }) => {
+    formatPrice: (price: number) => string;
+}> = ({ product, onSelect, isWishlisted, onToggleWishlist, currentUser, formatPrice }) => {
     
     const handleWishlistClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -121,6 +154,9 @@ const ProductCard: React.FC<{
                     <img src={product.imageUrl} alt={product.name} className="w-full h-56 object-cover" />
                     <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-all duration-300"></div>
                      <div className="absolute top-0 left-0 bg-freshpodd-blue/70 text-white text-xs font-bold px-3 py-1 m-2 rounded-full">View Details</div>
+                     {product.stock === 0 && (
+                        <div className="absolute top-0 right-0 bg-red-600 text-white text-xs font-bold px-3 py-1 m-2 rounded-full">OUT OF STOCK</div>
+                    )}
                 </div>
                 <div className="p-6 flex-grow flex flex-col">
                     <h3 className="text-xl font-bold text-white mb-2">{product.name}</h3>
@@ -134,7 +170,7 @@ const ProductCard: React.FC<{
                     </div>
                     <p className="text-gray-400 text-sm mb-4 flex-grow">{product.description.substring(0, 100)}...</p>
                     <div className="flex justify-between items-center mt-auto">
-                        <span className="text-2xl font-bold text-white">${product.price.toFixed(2)}</span>
+                        <span className="text-2xl font-bold text-white">{formatPrice(product.price)}</span>
                     </div>
                 </div>
             </button>
@@ -151,20 +187,20 @@ const ProductCard: React.FC<{
     );
 };
 
-const ProductPage: React.FC<ProductPageProps> = ({ products, onAddToCart, onBuyNow, onGoBack, canGoBack, wishlist, onToggleWishlist, currentUser }) => {
+const ProductPage: React.FC<ProductPageProps> = ({ products, onAddToCart, onBuyNow, onGoBack, canGoBack, wishlist, onToggleWishlist, currentUser, formatPrice, conversionRate, onStockNotificationSignup }) => {
     const [sortOrder, setSortOrder] = useState('rating-desc');
-    const [priceLimit, setPriceLimit] = useState(2000);
     const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
     const [selectedCapacity, setSelectedCapacity] = useState('all');
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
-
-
-    const maxPrice = useMemo(() => Math.ceil(Math.max(...products.map(p => p.price)) / 100) * 100, [products]);
     
-    if (priceLimit > maxPrice) {
-        setPriceLimit(maxPrice);
-    }
+    const maxPriceUSD = useMemo(() => Math.ceil(Math.max(...products.map(p => p.price)) / 100) * 100, [products]);
+    const [priceLimitUSD, setPriceLimitUSD] = useState(maxPriceUSD);
+
+    useEffect(() => {
+        setPriceLimitUSD(maxPriceUSD);
+    }, [maxPriceUSD]);
+
 
     const allFeatures = useMemo(() => {
         const featuresSet = new Set<string>();
@@ -187,7 +223,7 @@ const ProductPage: React.FC<ProductPageProps> = ({ products, onAddToCart, onBuyN
     };
     
     const resetFilters = () => {
-        setPriceLimit(maxPrice);
+        setPriceLimitUSD(maxPriceUSD);
         setSelectedFeatures([]);
         setSelectedCapacity('all');
     };
@@ -195,7 +231,7 @@ const ProductPage: React.FC<ProductPageProps> = ({ products, onAddToCart, onBuyN
     const filteredAndSortedProducts = useMemo(() => {
         let result = [...products];
 
-        result = result.filter(p => p.price <= priceLimit);
+        result = result.filter(p => p.price <= priceLimitUSD);
 
         if (selectedCapacity !== 'all') {
             result = result.filter(p => p.specs['Capacity'] === selectedCapacity);
@@ -217,7 +253,7 @@ const ProductPage: React.FC<ProductPageProps> = ({ products, onAddToCart, onBuyN
         });
 
         return result;
-    }, [products, sortOrder, priceLimit, selectedFeatures, selectedCapacity]);
+    }, [products, sortOrder, priceLimitUSD, selectedFeatures, selectedCapacity]);
 
     // Reset to page 1 when filters change
     useEffect(() => {
@@ -258,8 +294,16 @@ const ProductPage: React.FC<ProductPageProps> = ({ products, onAddToCart, onBuyN
                             {/* Price Filter */}
                             <div className="mb-6">
                                 <label htmlFor="price" className="block text-lg font-semibold text-white mb-2">Price</label>
-                                <input type="range" id="price" min="0" max={maxPrice} value={priceLimit} onChange={e => setPriceLimit(Number(e.target.value))} className="w-full h-2 bg-freshpodd-gray rounded-lg appearance-none cursor-pointer" />
-                                <div className="text-center text-gray-300 mt-2">Up to ${priceLimit}</div>
+                                <input 
+                                  type="range" 
+                                  id="price" 
+                                  min="0" 
+                                  max={maxPriceUSD * conversionRate} 
+                                  value={priceLimitUSD * conversionRate} 
+                                  onChange={e => setPriceLimitUSD(Number(e.target.value) / conversionRate)} 
+                                  className="w-full h-2 bg-freshpodd-gray rounded-lg appearance-none cursor-pointer" 
+                                />
+                                <div className="text-center text-gray-300 mt-2">Up to {formatPrice(priceLimitUSD)}</div>
                             </div>
                             
                             {/* Capacity Filter */}
@@ -307,6 +351,7 @@ const ProductPage: React.FC<ProductPageProps> = ({ products, onAddToCart, onBuyN
                                             isWishlisted={wishlist.some(p => p.id === product.id)}
                                             onToggleWishlist={onToggleWishlist}
                                             currentUser={currentUser}
+                                            formatPrice={formatPrice}
                                         />
                                     ))}
                                 </div>
@@ -351,6 +396,8 @@ const ProductPage: React.FC<ProductPageProps> = ({ products, onAddToCart, onBuyN
                     isWishlisted={wishlist.some(p => p.id === selectedProduct.id)}
                     onToggleWishlist={onToggleWishlist}
                     currentUser={currentUser}
+                    formatPrice={formatPrice}
+                    onStockNotificationSignup={onStockNotificationSignup}
                 />
             )}
         </div>

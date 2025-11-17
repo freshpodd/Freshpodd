@@ -1,16 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import { type User, type Order, type Product } from '../types';
+import { type User, type Order, type Product, type QuoteRequest } from '../types';
 import { XMarkIcon, ArrowLeftIcon } from './icons';
 
 interface AdminPageProps {
   users: User[];
   orders: Order[];
   products: Product[];
+  quoteRequests: QuoteRequest[];
   onUpdateOrder: (orderId: string, updates: Partial<Pick<Order, 'status' | 'paymentStatus'>>) => void;
   onUpdateProduct: (updatedProduct: Product) => void;
   onDeleteUser: (userId: string) => void;
+  onUpdateQuoteStatus: (quoteId: string, status: QuoteRequest['status']) => void;
   onGoBack: () => void;
   canGoBack: boolean;
+  formatPrice: (price: number) => string;
 }
 
 const StatCard: React.FC<{ title: string; value: string | number, icon: string }> = ({ title, value, icon }) => (
@@ -50,8 +53,8 @@ const OrderProgressBar: React.FC<{ status: Order['status'] }> = ({ status }) => 
 };
 
 
-const AdminPage: React.FC<AdminPageProps> = ({ users, orders, products, onUpdateOrder, onUpdateProduct, onDeleteUser, onGoBack, canGoBack }) => {
-    const [activeTab, setActiveTab] = useState<'orders' | 'users' | 'products'>('orders');
+const AdminPage: React.FC<AdminPageProps> = ({ users, orders, products, quoteRequests, onUpdateOrder, onUpdateProduct, onDeleteUser, onUpdateQuoteStatus, onGoBack, canGoBack, formatPrice }) => {
+    const [activeTab, setActiveTab] = useState<'orders' | 'users' | 'products' | 'quotes'>('orders');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
@@ -79,8 +82,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, orders, products, onUpdate
     
     const tabs = {
         orders: 'Orders',
-        users: 'Users',
+        quotes: 'Quotes',
         products: 'Products',
+        users: 'Users',
     };
 
     return (
@@ -96,10 +100,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, orders, products, onUpdate
 
                 {/* Stats Section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                    <StatCard title="Total Revenue" value={`$${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} icon="💰" />
+                    <StatCard title="Total Revenue" value={formatPrice(totalRevenue)} icon="💰" />
                     <StatCard title="Total Orders" value={orders.length} icon="📦" />
+                    <StatCard title="Quote Requests" value={quoteRequests.length} icon="📝"/>
                     <StatCard title="Total Users" value={users.length} icon="👥" />
-                    <StatCard title="Total Units Available" value={totalStock} icon="🧊" />
                 </div>
 
                 {/* Management Section */}
@@ -129,7 +133,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, orders, products, onUpdate
                                     <div className="flex flex-col md:flex-row justify-between md:items-center mb-4">
                                         <div>
                                             <h3 className="text-xl font-bold text-white">Order #{order.id}</h3>
-                                            <p className="text-sm text-gray-400">Date: {order.date} · Total: ${order.total.toFixed(2)}</p>
+                                            <p className="text-sm text-gray-400">Date: {order.date} · Total: {formatPrice(order.total)}</p>
                                         </div>
                                         <div className="flex space-x-4 mt-4 md:mt-0">
                                             <div>
@@ -182,7 +186,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, orders, products, onUpdate
                         </div>
                     )}
                     
-                    {(activeTab === 'users' || activeTab === 'products') && (
+                    {(activeTab === 'users' || activeTab === 'products' || activeTab === 'quotes') && (
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-freshpodd-gray">
                                 {activeTab === 'users' && (
@@ -216,7 +220,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, orders, products, onUpdate
                                         <thead className="bg-freshpodd-gray/30">
                                             <tr>
                                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Product</th>
-                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Price</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Price (USD)</th>
                                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Stock</th>
                                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Rating</th>
                                                 <th scope="col" className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
@@ -231,6 +235,43 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, orders, products, onUpdate
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{product.averageRating.toFixed(1)}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                         <button onClick={() => handleOpenEditModal(product)} className="text-freshpodd-teal hover:text-teal-400">Edit</button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </>
+                                )}
+                                 {activeTab === 'quotes' && (
+                                    <>
+                                        <thead className="bg-freshpodd-gray/30">
+                                            <tr>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Request ID</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Customer</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Quantity</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-freshpodd-blue divide-y divide-freshpodd-gray">
+                                            {quoteRequests.map(quote => (
+                                                <tr key={quote.id}>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{quote.id}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                                        <div>{quote.name}</div>
+                                                        <div className="text-xs text-gray-500">{quote.company || quote.email}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{quote.quantity}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{quote.date}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                                        <select
+                                                            value={quote.status}
+                                                            onChange={(e) => onUpdateQuoteStatus(quote.id, e.target.value as QuoteRequest['status'])}
+                                                            className="bg-freshpodd-gray text-white p-1 rounded-md border border-gray-600 text-sm focus:outline-none focus:ring-1 focus:ring-freshpodd-teal"
+                                                        >
+                                                            <option>New</option>
+                                                            <option>Quoted</option>
+                                                            <option>Closed</option>
+                                                        </select>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -258,7 +299,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, orders, products, onUpdate
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label htmlFor="productPrice" className="block text-sm font-medium text-gray-300 mb-2">Price</label>
+                                    <label htmlFor="productPrice" className="block text-sm font-medium text-gray-300 mb-2">Price (USD)</label>
                                     <input type="number" step="0.01" id="productPrice" value={editingProduct.price} onChange={e => setEditingProduct({...editingProduct, price: Number(e.target.value)})} className="w-full bg-freshpodd-gray text-white p-2 rounded-md border border-gray-600" />
                                 </div>
                                  <div>

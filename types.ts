@@ -1,6 +1,8 @@
 import { type Chat } from "@google/genai";
 
-export type View = 'home' | 'product' | 'cart' | 'orders' | 'contact' | 'login' | 'returns' | 'admin' | 'landing' | 'wishlist';
+export type Currency = 'USD' | 'INR';
+
+export type View = 'home' | 'product' | 'cart' | 'orders' | 'contact' | 'login' | 'returns' | 'admin' | 'landing' | 'wishlist' | 'quote';
 
 export interface User {
   id: string;
@@ -66,4 +68,26 @@ export interface ChatMessage {
 export interface GeminiChatSession {
   chat: Chat;
   history: { role: 'user' | 'model', parts: { text: string }[] }[];
+}
+
+export interface StockNotification {
+  productId: string;
+  email: string;
+}
+
+export interface QuoteRequest {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  company?: string;
+  capacity: number;
+  dimensions?: string;
+  features: string[];
+  otherFeatures?: string;
+  quantity: number;
+  details: string;
+  status: 'New' | 'Quoted' | 'Closed';
+  date: string;
+  estimatedQuote?: string;
 }

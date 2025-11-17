@@ -14,8 +14,10 @@ import LandingPage from './components/LandingPage';
 import LogoutConfirmationModal from './components/LogoutConfirmationModal';
 import BackToTopButton from './components/BackToTopButton';
 import WishlistPage from './components/WishlistPage';
+import QuotePage from './components/QuotePage';
 import { ChatBubbleIcon } from './components/icons';
-import { type View, type User, type Product, type CartItem, type Order } from './types';
+import { getQuoteFromGemini } from './services/geminiService';
+import { type View, type User, type Product, type CartItem, type Order, type Currency, type StockNotification, type QuoteRequest } from './types';
 
 // Mock Data
 const MOCK_PRODUCTS_DATA: Product[] = [
@@ -41,7 +43,7 @@ const MOCK_PRODUCTS_DATA: Product[] = [
     },
     averageRating: 4.7,
     reviewsCount: 115,
-    stock: 100,
+    stock: 0, // Out of stock for demonstration
   },
   {
     id: 'FP001',
@@ -125,6 +127,28 @@ const MOCK_USERS_DATA: User[] = [
     { id: '2', name: 'Test User', email: 'user@example.com', password: 'password123', phone: '555-0101' },
 ];
 
+const MOCK_QUOTES_DATA: QuoteRequest[] = [
+    {
+      id: 'QR001',
+      name: 'Jane Doe',
+      email: 'jane.doe@acmecorp.com',
+      phone: '555-123-4567',
+      company: 'ACME Corp',
+      capacity: 500,
+      features: ['Dual-zone temperature control', 'Custom branding/logo'],
+      quantity: 15,
+      details: 'Need units for transporting sensitive medical supplies.',
+      status: 'New',
+      date: '2024-07-28',
+    },
+];
+
+
+const CONVERSION_RATES: Record<Currency, number> = {
+    USD: 1,
+    INR: 83.50,
+};
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('landing');
   const [history, setHistory] = useState<View[]>(['landing']);
@@ -136,12 +160,27 @@ const App: React.FC = () => {
   const [isBuyNowFlow, setIsBuyNowFlow] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [currency, setCurrency] = useState<Currency>('USD');
+  const [stockNotifications, setStockNotifications] = useState<StockNotification[]>([]);
 
 
   // Convert mock data to state to allow for admin modifications
   const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS_DATA);
   const [users, setUsers] = useState<User[]>(MOCK_USERS_DATA);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [quoteRequests, setQuoteRequests] = useState<QuoteRequest[]>(MOCK_QUOTES_DATA);
+  
+  const formatPrice = (priceInUsd: number) => {
+    const rate = CONVERSION_RATES[currency];
+    const convertedPrice = priceInUsd * rate;
+    return new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en-US', {
+        style: 'currency',
+        currency: currency,
+    }).format(convertedPrice);
+  };
+  
+  const conversionRate = CONVERSION_RATES[currency];
+
 
   useEffect(() => {
     const handleScroll = () => {
@@ -352,6 +391,33 @@ const App: React.FC = () => {
     addToCart(item, false);
     setIsBuyNowFlow(true);
   };
+
+  const handleStockNotificationSignup = (productId: string, email: string) => {
+    setStockNotifications(prev => [...prev, { productId, email }]);
+    showNotification(`We'll notify you at ${email} when the product is back in stock!`);
+  };
+
+  const handleGenerateQuote = async (requestData: Omit<QuoteRequest, 'id' | 'status' | 'date' | 'estimatedQuote'>): Promise<string | null> => {
+    try {
+        const quoteText = await getQuoteFromGemini(requestData, currency);
+        return quoteText;
+    } catch (error) {
+        console.error("Error generating quote:", error);
+        showNotification("Sorry, we couldn't generate an instant quote. Our team will still review your request and get back to you shortly.", true);
+        return null;
+    }
+  };
+
+  const handleQuoteRequestSubmit = (requestData: Omit<QuoteRequest, 'id' | 'status' | 'date'>) => {
+    const newRequest: QuoteRequest = {
+        ...requestData,
+        id: `QR${(quoteRequests.length + 1).toString().padStart(3, '0')}`,
+        status: 'New',
+        date: new Date().toISOString().split('T')[0],
+    };
+    setQuoteRequests(prev => [newRequest, ...prev]);
+    showNotification('Your quote request has been submitted successfully!');
+  };
   
   // Admin handlers
   const handleUpdateOrder = (orderId: string, updates: Partial<Pick<Order, 'status' | 'paymentStatus'>>) => {
@@ -361,8 +427,19 @@ const App: React.FC = () => {
   };
 
   const handleUpdateProduct = (updatedProduct: Product) => {
+    const oldProduct = products.find(p => p.id === updatedProduct.id);
+    let notificationMessage = `${updatedProduct.name} has been updated.`;
+
+    if (oldProduct && oldProduct.stock === 0 && updatedProduct.stock > 0) {
+        const notificationsForProduct = stockNotifications.filter(n => n.productId === updatedProduct.id);
+        if (notificationsForProduct.length > 0) {
+            console.log(`Simulating sending "back in stock" emails to:`, notificationsForProduct.map(n => n.email));
+            setStockNotifications(prev => prev.filter(n => n.productId !== updatedProduct.id));
+            notificationMessage += ` ${notificationsForProduct.length} users notified about restock.`;
+        }
+    }
     setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-    showNotification(`${updatedProduct.name} has been updated.`);
+    showNotification(notificationMessage);
   };
 
   const handleDeleteUser = (userId: string) => {
@@ -373,6 +450,12 @@ const App: React.FC = () => {
     setUsers(users.filter(u => u.id !== userId));
     showNotification(`User has been deleted.`);
   };
+
+   const handleUpdateQuoteStatus = (quoteId: string, status: QuoteRequest['status']) => {
+    setQuoteRequests(quotes => quotes.map(q => q.id === quoteId ? { ...q, status } : q));
+    showNotification(`Quote #${quoteId} status updated to ${status}.`);
+  };
+
 
   useEffect(() => {
     if (isBuyNowFlow && cart.length > 0) {
@@ -390,33 +473,35 @@ const App: React.FC = () => {
       case 'home':
         return <HomePage onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} />;
       case 'product':
-        return <ProductPage products={products} onAddToCart={addToCart} onBuyNow={handleBuyNow} onGoBack={handleGoBack} canGoBack={canGoBack} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} currentUser={currentUser} />;
+        return <ProductPage products={products} onAddToCart={addToCart} onBuyNow={handleBuyNow} onGoBack={handleGoBack} canGoBack={canGoBack} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} currentUser={currentUser} formatPrice={formatPrice} conversionRate={conversionRate} onStockNotificationSignup={handleStockNotificationSignup} />;
       case 'cart':
-        return <CartPage cartItems={cart} onRemoveItem={removeFromCart} onUpdateQuantity={updateCartQuantity} onCheckout={handleCheckout} onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} />;
+        return <CartPage cartItems={cart} onRemoveItem={removeFromCart} onUpdateQuantity={updateCartQuantity} onCheckout={handleCheckout} onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} formatPrice={formatPrice} />;
       case 'orders':
          if (!currentUser) {
             handleNavigate('login');
             return null;
          }
-        return <OrdersPage orders={orders.filter(o => currentUser.isAdmin || o.user.id === currentUser.id)} onBuyAgain={addToCart} onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} />;
+        return <OrdersPage orders={orders.filter(o => currentUser.isAdmin || o.user.id === currentUser.id)} onBuyAgain={addToCart} onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} formatPrice={formatPrice} />;
       case 'contact':
         return <ContactPage onGoBack={handleGoBack} canGoBack={canGoBack} />;
       case 'login':
         return <LoginPage onLogin={handleLogin} onGoBack={handleGoBack} canGoBack={canGoBack} />;
       case 'returns':
         return <ReturnPolicyPage onGoBack={handleGoBack} canGoBack={canGoBack} />;
+      case 'quote':
+        return <QuotePage currentUser={currentUser} onSubmit={handleQuoteRequestSubmit} onGenerateQuote={handleGenerateQuote} onGoBack={handleGoBack} canGoBack={canGoBack} />;
       case 'wishlist':
         if (!currentUser) {
             handleNavigate('login');
             return null;
         }
-        return <WishlistPage wishlistItems={wishlist} onAddToCart={addToCart} onToggleWishlist={handleToggleWishlist} onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} />;
+        return <WishlistPage wishlistItems={wishlist} onAddToCart={addToCart} onToggleWishlist={handleToggleWishlist} onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} formatPrice={formatPrice} />;
       case 'admin':
         if (!currentUser?.isAdmin) {
             handleNavigate('home');
             return null;
         }
-        return <AdminPage users={users} orders={orders} products={products} onUpdateOrder={handleUpdateOrder} onUpdateProduct={handleUpdateProduct} onDeleteUser={handleDeleteUser} onGoBack={handleGoBack} canGoBack={canGoBack} />;
+        return <AdminPage users={users} orders={orders} products={products} quoteRequests={quoteRequests} onUpdateOrder={handleUpdateOrder} onUpdateProduct={handleUpdateProduct} onDeleteUser={handleDeleteUser} onUpdateQuoteStatus={handleUpdateQuoteStatus} onGoBack={handleGoBack} canGoBack={canGoBack} formatPrice={formatPrice} />;
       default:
         return <LandingPage onNavigate={handleNavigate} />;
     }
@@ -426,12 +511,12 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-freshpodd-blue">
-      {currentView !== 'landing' && <Header onNavigate={handleNavigate} cartItemCount={cartItemCount} wishlistItemCount={wishlist.length} user={currentUser} onLogout={handleInitiateLogout}/>}
+      {currentView !== 'landing' && <Header onNavigate={handleNavigate} cartItemCount={cartItemCount} wishlistItemCount={wishlist.length} user={currentUser} onLogout={handleInitiateLogout} currency={currency} onCurrencyChange={setCurrency} />}
       <main className="flex-grow">
         {renderView()}
       </main>
       {currentView !== 'landing' && <Footer onNavigate={handleNavigate} />}
-      <Chatbot isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      <Chatbot isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} currency={currency} />
        {currentView !== 'landing' && !isChatOpen && (
         <button onClick={() => setIsChatOpen(true)} className="fixed bottom-6 right-6 bg-freshpodd-teal text-white p-4 rounded-full shadow-lg hover:bg-teal-500 transition-transform transform hover:scale-110 z-50">
             <ChatBubbleIcon className="w-8 h-8"/>

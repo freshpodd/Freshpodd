@@ -10,12 +10,14 @@ interface CartPageProps {
   onNavigate: (view: View) => void;
   onGoBack: () => void;
   canGoBack: boolean;
+  formatPrice: (price: number) => string;
 }
 
-const CartPage: React.FC<CartPageProps> = ({ cartItems, onRemoveItem, onUpdateQuantity, onCheckout, onNavigate, onGoBack, canGoBack }) => {
+const CartPage: React.FC<CartPageProps> = ({ cartItems, onRemoveItem, onUpdateQuantity, onCheckout, onNavigate, onGoBack, canGoBack, formatPrice }) => {
   const subtotal = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
   const tax = subtotal * 0.08;
   const total = subtotal + tax;
+  const isAnyItemOutOfStock = cartItems.some(item => item.product.stock < item.quantity);
 
   return (
     <div className="min-h-screen bg-freshpodd-blue text-freshpodd-light py-12">
@@ -47,7 +49,10 @@ const CartPage: React.FC<CartPageProps> = ({ cartItems, onRemoveItem, onUpdateQu
                     <img src={product.imageUrl} alt={product.name} className="w-24 h-24 object-cover rounded-md mr-6" />
                     <div className="flex-grow">
                       <h2 className="text-lg font-bold text-white">{product.name}</h2>
-                      <p className="text-gray-400 text-sm">Unit Price: ${product.price.toFixed(2)}</p>
+                      <p className="text-gray-400 text-sm">Unit Price: {formatPrice(product.price)}</p>
+                       {product.stock < quantity && (
+                          <p className="text-red-400 text-xs mt-1 font-bold">Not enough stock! Only {product.stock} available.</p>
+                       )}
                     </div>
                     <div className="flex items-center space-x-4">
                       <input 
@@ -57,7 +62,7 @@ const CartPage: React.FC<CartPageProps> = ({ cartItems, onRemoveItem, onUpdateQu
                         className="w-16 bg-freshpodd-gray text-white text-center p-2 rounded-md border border-gray-600"
                         min="1"
                       />
-                      <p className="text-lg font-semibold w-24 text-right">${(product.price * quantity).toFixed(2)}</p>
+                      <p className="text-lg font-semibold w-24 text-right">{formatPrice(product.price * quantity)}</p>
                       <button onClick={() => onRemoveItem(product.id)} className="text-gray-400 hover:text-red-500 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
@@ -72,20 +77,25 @@ const CartPage: React.FC<CartPageProps> = ({ cartItems, onRemoveItem, onUpdateQu
                 <div className="space-y-4 text-gray-300">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
-                    <span>${subtotal.toFixed(2)}</span>
+                    <span>{formatPrice(subtotal)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Estimated Tax (8%)</span>
-                    <span>${tax.toFixed(2)}</span>
+                    <span>{formatPrice(tax)}</span>
                   </div>
                   <div className="flex justify-between text-white font-bold text-xl border-t border-freshpodd-gray pt-4 mt-4">
                     <span>Total</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>{formatPrice(total)}</span>
                   </div>
                 </div>
-                <button onClick={onCheckout} className="w-full mt-8 bg-freshpodd-teal hover:bg-teal-500 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105 duration-300">
+                <button 
+                  onClick={onCheckout}
+                  disabled={isAnyItemOutOfStock}
+                  className="w-full mt-8 bg-freshpodd-teal hover:bg-teal-500 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105 duration-300 disabled:bg-gray-500 disabled:cursor-not-allowed disabled:scale-100"
+                >
                   Proceed to Checkout
                 </button>
+                {isAnyItemOutOfStock && <p className="text-red-400 text-sm mt-4 text-center">Please adjust quantities for out-of-stock items to proceed.</p>}
               </div>
             </div>
           </div>

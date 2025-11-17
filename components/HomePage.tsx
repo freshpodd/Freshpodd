@@ -80,8 +80,21 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate, onGoBack, canGoBack }) 
         </div>
       </section>
 
+      {/* Custom Quote Section */}
+      <section className="py-20 bg-freshpodd-blue px-4">
+          <div className="container mx-auto text-center">
+              <h2 className="text-3xl font-bold mb-4">Need Something Special?</h2>
+              <p className="text-gray-300 max-w-3xl mx-auto mb-8">
+                  We offer fully customizable cold storage solutions for commercial and specialized needs. From custom sizes and branding to advanced features like GPS tracking or dual-zone cooling, our engineering team can build the perfect FreshPodd for you.
+              </p>
+              <button onClick={() => onNavigate('quote')} className="bg-freshpodd-teal hover:bg-teal-500 text-white font-bold py-3 px-8 rounded-full text-lg transition-transform transform hover:scale-105 duration-300">
+                  Get a Custom Quote
+              </button>
+          </div>
+      </section>
+
       {/* Testimonials Section */}
-      <section className="py-20 px-4 bg-freshpodd-blue">
+      <section className="py-20 px-4 bg-freshpodd-gray/20">
         <div className="container mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12">What Our Customers Say</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
