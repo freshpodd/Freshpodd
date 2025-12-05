@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ShoppingCartIcon, UserCircleIcon, Cog6ToothIcon, HeartIcon } from './icons';
 import { type View, type User, type Currency } from '../types';
@@ -50,6 +49,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, cartItemCount, wishlistItem
                 >
                     <option value="USD">USD ($)</option>
                     <option value="INR">INR (₹)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
                 </select>
             </div>
              {user?.isAdmin && (

@@ -17,7 +17,7 @@ import WishlistPage from './components/WishlistPage';
 import QuotePage from './components/QuotePage';
 import { ChatBubbleIcon } from './components/icons';
 import { getQuoteFromGemini } from './services/geminiService';
-import { type View, type User, type Product, type CartItem, type Order, type Currency, type StockNotification, type QuoteRequest } from './types';
+import { type View, type User, type Product, type CartItem, type Order, type Currency, type StockNotification, type QuoteRequest, type Warehouse, type ChartDataPoint, type HrDepartment } from './types';
 
 // Mock Data
 const MOCK_PRODUCTS_DATA: Product[] = [
@@ -43,7 +43,6 @@ const MOCK_PRODUCTS_DATA: Product[] = [
     },
     averageRating: 4.7,
     reviewsCount: 115,
-    stock: 0, // Out of stock for demonstration
   },
   {
     id: 'FP001',
@@ -67,7 +66,6 @@ const MOCK_PRODUCTS_DATA: Product[] = [
     },
     averageRating: 4.8,
     reviewsCount: 88,
-    stock: 50,
   },
   {
     id: 'FP002',
@@ -92,7 +90,6 @@ const MOCK_PRODUCTS_DATA: Product[] = [
     },
     averageRating: 4.9,
     reviewsCount: 62,
-    stock: 40,
   },
   {
     id: 'FP003',
@@ -118,9 +115,17 @@ const MOCK_PRODUCTS_DATA: Product[] = [
     },
     averageRating: 4.9,
     reviewsCount: 45,
-    stock: 25,
   },
 ];
+
+const MOCK_WAREHOUSES_DATA: Warehouse[] = [
+    { id: 'WH01', name: 'Chicago Warehouse', location: 'Chicago, USA', country: 'USA', coords: { x: 250, y: 200 }, stock: { 'FP001': 20, 'FP002': 15, 'FP003': 10, 'FP004': 0 } },
+    { id: 'WH02', name: 'Frankfurt Warehouse', location: 'Frankfurt, Germany', country: 'Germany', coords: { x: 480, y: 180 }, stock: { 'FP001': 15, 'FP002': 10, 'FP003': 5, 'FP004': 10 } },
+    { id: 'WH03', name: 'Mumbai Warehouse', location: 'Mumbai, India', country: 'India', coords: { x: 630, y: 280 }, stock: { 'FP001': 25, 'FP002': 5, 'FP003': 5, 'FP004': 15 } },
+    { id: 'WH04', name: 'São Paulo Warehouse', location: 'São Paulo, Brazil', country: 'Brazil', coords: { x: 350, y: 450 }, stock: { 'FP001': 10, 'FP002': 10, 'FP003': 2, 'FP004': 5 } },
+    { id: 'WH05', name: 'Tokyo Warehouse', location: 'Tokyo, Japan', country: 'Japan', coords: { x: 780, y: 210 }, stock: { 'FP001': 5, 'FP002': 10, 'FP003': 8, 'FP004': 8 } },
+];
+
 
 const MOCK_USERS_DATA: User[] = [
     { id: '1', name: 'Admin User', email: 'admin@example.com', password: 'adminpassword', isAdmin: true, phone: '555-0199' },
@@ -143,10 +148,25 @@ const MOCK_QUOTES_DATA: QuoteRequest[] = [
     },
 ];
 
+// Mock data for Admin Dashboard
+const MOCK_SALES_CHART_DATA: ChartDataPoint[] = [
+    { label: 'Jan', value: 25000 }, { label: 'Feb', value: 32000 }, { label: 'Mar', value: 41000 },
+    { label: 'Apr', value: 38000 }, { label: 'May', value: 52000 }, { label: 'Jun', value: 65000 },
+];
+const MOCK_HR_DATA: HrDepartment[] = [
+    { name: 'Engineering', count: 12, color: '#14b8a6' }, { name: 'Sales', count: 8, color: '#3b82f6' },
+    { name: 'Marketing', count: 5, color: '#f97316' }, { name: 'Support', count: 6, color: '#8b5cf6' },
+];
+const MOCK_MARKETING_CHART_DATA: ChartDataPoint[] = [
+    { label: 'Jan', value: 12000 }, { label: 'Feb', value: 15000 }, { label: 'Mar', value: 14000 },
+    { label: 'Apr', value: 18000 }, { label: 'May', value: 22000 }, { label: 'Jun', value: 25000 },
+];
 
 const CONVERSION_RATES: Record<Currency, number> = {
     USD: 1,
     INR: 83.50,
+    EUR: 0.92,
+    GBP: 0.79,
 };
 
 const App: React.FC = () => {
@@ -163,12 +183,15 @@ const App: React.FC = () => {
   const [currency, setCurrency] = useState<Currency>('USD');
   const [stockNotifications, setStockNotifications] = useState<StockNotification[]>([]);
 
-
-  // Convert mock data to state to allow for admin modifications
   const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS_DATA);
   const [users, setUsers] = useState<User[]>(MOCK_USERS_DATA);
   const [orders, setOrders] = useState<Order[]>([]);
   const [quoteRequests, setQuoteRequests] = useState<QuoteRequest[]>(MOCK_QUOTES_DATA);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>(MOCK_WAREHOUSES_DATA);
+
+  const getTotalStock = (productId: string) => {
+    return warehouses.reduce((total, warehouse) => total + (warehouse.stock[productId] || 0), 0);
+  };
   
   const formatPrice = (priceInUsd: number) => {
     const rate = CONVERSION_RATES[currency];
@@ -181,34 +204,26 @@ const App: React.FC = () => {
   
   const conversionRate = CONVERSION_RATES[currency];
 
-
   useEffect(() => {
     const handleScroll = () => {
         setShowBackToTop(window.scrollY > 300);
     };
-
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const scrollToTop = () => {
-      window.scrollTo({
-          top: 0,
-          behavior: 'smooth',
-      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const showNotification = (message: string, isError = false) => {
     setNotification(message);
-    // You might want to add a different style for errors
     setTimeout(() => setNotification(''), 3000);
   };
   
   const handleNavigate = (view: View) => {
     setHistory(prev => {
-        if (prev[prev.length - 1] === view) {
-            return prev; // Do not add duplicate consecutive views
-        }
+        if (prev[prev.length - 1] === view) return prev;
         return [...prev, view];
     });
     setCurrentView(view);
@@ -217,7 +232,7 @@ const App: React.FC = () => {
 
   const handleGoBack = () => {
     setHistory(prev => {
-        if (prev.length <= 1) return prev; // Cannot go back further
+        if (prev.length <= 1) return prev;
         const newHistory = prev.slice(0, -1);
         setCurrentView(newHistory[newHistory.length - 1]);
         return newHistory;
@@ -231,53 +246,24 @@ const App: React.FC = () => {
         showNotification('An account with this email already exists.', true);
         return;
       }
-      const newUser: User = {
-        id: (users.length + 1).toString(),
-        name: credentials.name,
-        email: credentials.email,
-        password: credentials.password,
-        isAdmin: false,
-      };
+      const newUser: User = { id: (users.length + 1).toString(), name: credentials.name, email: credentials.email, password: credentials.password, isAdmin: false };
       setUsers([...users, newUser]);
       setCurrentUser(newUser);
-      setOrders([]); // Clear orders for new user
-      setWishlist([]); // Clear wishlist for new user
+      setOrders([]);
+      setWishlist([]);
       handleNavigate('home');
       showNotification(`Welcome, ${newUser.name}!`);
     } else { // Login
       const foundUser = users.find(u => u.email === credentials.email && u.password === credentials.password);
       if (foundUser) {
         setCurrentUser(foundUser);
-        setWishlist([]); // Clear any guest wishlist
-        // Mock loading orders for the logged-in user
+        setWishlist([]);
         setOrders([
-            { 
-                id: 'FP1024', 
-                date: '2023-11-05', 
-                user: { id: '2', name: 'Test User' },
-                items: [{ product: products[0], quantity: 1 }], 
-                total: 1403.99, 
-                status: 'Shipped',
-                paymentStatus: 'Paid',
-                shippingInfo: { address: '123 Tech Lane', city: 'Silicon Valley', postalCode: '94043', country: 'USA', phone: '555-0101' }
-            },
-            { 
-                id: 'FP1007', 
-                date: '2023-08-12', 
-                user: { id: '2', name: 'Test User' },
-                items: [{ product: products[1], quantity: 1 }], 
-                total: 3239.99, 
-                status: 'Delivered',
-                paymentStatus: 'Paid',
-                shippingInfo: { address: '456 Innovation Ave', city: 'Austin', postalCode: '73301', country: 'USA', phone: '555-0101' }
-            }
-        ].filter(order => foundUser.isAdmin || order.user.id === foundUser.id)); // Admins see all orders
-        
-        if (foundUser.isAdmin) {
-          handleNavigate('admin');
-        } else {
-          handleNavigate('home');
-        }
+            { id: 'FP1024', date: '2024-07-15', user: { id: '2', name: 'Test User' }, items: [{ product: {...MOCK_PRODUCTS_DATA[0], stock: getTotalStock(MOCK_PRODUCTS_DATA[0].id)}, quantity: 1 }], total: 799.99, status: 'Shipped', paymentStatus: 'Paid', shippingInfo: { address: '123 Tech Lane', city: 'Silicon Valley', postalCode: '94043', country: 'USA', phone: '555-0101', coords: { x: 200, y: 215 } } },
+            { id: 'FP1007', date: '2024-06-20', user: { id: '2', name: 'Test User' }, items: [{ product: {...MOCK_PRODUCTS_DATA[1], stock: getTotalStock(MOCK_PRODUCTS_DATA[1].id)}, quantity: 1 }], total: 1299.99, status: 'Delivered', paymentStatus: 'Paid', shippingInfo: { address: '456 Innovation Ave', city: 'Austin', postalCode: '73301', country: 'USA', phone: '555-0101', coords: { x: 220, y: 250 } } },
+            { id: 'FP1025', date: '2024-07-22', user: { id: '3', name: 'International User' }, items: [{ product: {...MOCK_PRODUCTS_DATA[2], stock: getTotalStock(MOCK_PRODUCTS_DATA[2].id)}, quantity: 1 }], total: 1899.99, status: 'Processing', paymentStatus: 'Paid', shippingInfo: { address: '10 Downing Street', city: 'London', postalCode: 'SW1A 2AA', country: 'UK', phone: '555-0202', coords: { x: 450, y: 170 } } }
+        ].filter(order => foundUser.isAdmin || order.user.id === foundUser.id));
+        if (foundUser.isAdmin) handleNavigate('admin'); else handleNavigate('home');
         showNotification(`Welcome back, ${foundUser.name}!`);
       } else {
         showNotification('Invalid email or password.', true);
@@ -285,14 +271,8 @@ const App: React.FC = () => {
     }
   };
 
-  const handleInitiateLogout = () => {
-    setIsLogoutModalOpen(true);
-  };
-
-  const handleCancelLogout = () => {
-    setIsLogoutModalOpen(false);
-  };
-
+  const handleInitiateLogout = () => setIsLogoutModalOpen(true);
+  const handleCancelLogout = () => setIsLogoutModalOpen(false);
   const handleConfirmLogout = () => {
     setCurrentUser(null);
     setOrders([]);
@@ -310,18 +290,11 @@ const App: React.FC = () => {
       }
       return [...prevCart, item];
     });
-    if (showNotif) {
-      showNotification(`${item.product.name} added to cart!`);
-    }
+    if (showNotif) showNotification(`${item.product.name} added to cart!`);
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart(cart.filter(item => item.product.id !== productId));
-  };
-
-  const updateCartQuantity = (productId: string, quantity: number) => {
-    setCart(cart.map(item => item.product.id === productId ? { ...item, quantity } : item));
-  };
+  const removeFromCart = (productId: string) => setCart(cart.filter(item => item.product.id !== productId));
+  const updateCartQuantity = (productId: string, quantity: number) => setCart(cart.map(item => item.product.id === productId ? { ...item, quantity } : item));
   
   const handleToggleWishlist = (productId: string) => {
     if (!currentUser) {
@@ -345,29 +318,30 @@ const App: React.FC = () => {
     });
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = (paymentMethod: Order['paymentMethod']) => {
     if (!currentUser) {
         handleNavigate('login');
         showNotification('Please log in to proceed with checkout.', true);
         return;
     }
 
-    // Decrement stock
-    let canFulfill = true;
-    const newProducts = [...products];
+    for (const item of cart) {
+        if (getTotalStock(item.product.id) < item.quantity) {
+            showNotification(`Error: Not enough stock for ${item.product.name}.`, true);
+            return;
+        }
+    }
+
+    const newWarehouses = JSON.parse(JSON.stringify(warehouses));
     cart.forEach(item => {
-        const productIndex = newProducts.findIndex(p => p.id === item.product.id);
-        if (productIndex !== -1 && newProducts[productIndex].stock >= item.quantity) {
-            newProducts[productIndex].stock -= item.quantity;
-        } else {
-            canFulfill = false;
+        const warehouseWithMostStock = newWarehouses
+            .filter((w: Warehouse) => (w.stock[item.product.id] || 0) > 0)
+            .sort((a: Warehouse, b: Warehouse) => b.stock[item.product.id] - a.stock[item.product.id])[0];
+        if (warehouseWithMostStock) {
+            warehouseWithMostStock.stock[item.product.id] -= item.quantity;
         }
     });
-
-    if (!canFulfill) {
-        showNotification('Error: Not enough stock for one or more items.', true);
-        return;
-    }
+    setWarehouses(newWarehouses);
 
     const newOrder: Order = {
         id: `FP${1025 + orders.length}`,
@@ -376,11 +350,11 @@ const App: React.FC = () => {
         items: cart,
         total: cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0) * 1.08,
         status: 'Processing',
-        paymentStatus: 'Paid', // Assume payment is successful on checkout
-        shippingInfo: { address: '789 User Street', city: 'Anytown', postalCode: '12345', country: 'USA', phone: currentUser.phone || 'N/A' }
+        paymentStatus: 'Paid',
+        shippingInfo: { address: '789 User Street', city: 'Anytown', postalCode: '12345', country: 'USA', phone: currentUser.phone || 'N/A' },
+        paymentMethod: paymentMethod,
     };
 
-    setProducts(newProducts);
     setOrders([newOrder, ...orders]);
     setCart([]);
     handleNavigate('orders');
@@ -399,47 +373,53 @@ const App: React.FC = () => {
 
   const handleGenerateQuote = async (requestData: Omit<QuoteRequest, 'id' | 'status' | 'date' | 'estimatedQuote'>): Promise<string | null> => {
     try {
-        const quoteText = await getQuoteFromGemini(requestData, currency);
-        return quoteText;
+        return await getQuoteFromGemini(requestData, currency);
     } catch (error) {
         console.error("Error generating quote:", error);
-        showNotification("Sorry, we couldn't generate an instant quote. Our team will still review your request and get back to you shortly.", true);
+        showNotification("Sorry, we couldn't generate an instant quote. Our team will still review your request.", true);
         return null;
     }
   };
 
   const handleQuoteRequestSubmit = (requestData: Omit<QuoteRequest, 'id' | 'status' | 'date'>) => {
-    const newRequest: QuoteRequest = {
-        ...requestData,
-        id: `QR${(quoteRequests.length + 1).toString().padStart(3, '0')}`,
-        status: 'New',
-        date: new Date().toISOString().split('T')[0],
-    };
+    const newRequest: QuoteRequest = { ...requestData, id: `QR${(quoteRequests.length + 1).toString().padStart(3, '0')}`, status: 'New', date: new Date().toISOString().split('T')[0] };
     setQuoteRequests(prev => [newRequest, ...prev]);
-    showNotification('Your quote request has been submitted successfully!');
   };
   
   // Admin handlers
   const handleUpdateOrder = (orderId: string, updates: Partial<Pick<Order, 'status' | 'paymentStatus'>>) => {
       setOrders(orders.map(o => o.id === orderId ? { ...o, ...updates } : o));
-      const updateMessage = updates.status ? `status updated to ${updates.status}` : `payment status updated to ${updates.paymentStatus}`;
-      showNotification(`Order #${orderId} ${updateMessage}.`);
+      showNotification(`Order #${orderId} has been updated.`);
   };
 
   const handleUpdateProduct = (updatedProduct: Product) => {
-    const oldProduct = products.find(p => p.id === updatedProduct.id);
-    let notificationMessage = `${updatedProduct.name} has been updated.`;
-
-    if (oldProduct && oldProduct.stock === 0 && updatedProduct.stock > 0) {
-        const notificationsForProduct = stockNotifications.filter(n => n.productId === updatedProduct.id);
-        if (notificationsForProduct.length > 0) {
-            console.log(`Simulating sending "back in stock" emails to:`, notificationsForProduct.map(n => n.email));
-            setStockNotifications(prev => prev.filter(n => n.productId !== updatedProduct.id));
-            notificationMessage += ` ${notificationsForProduct.length} users notified about restock.`;
-        }
-    }
     setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-    showNotification(notificationMessage);
+    showNotification(`${updatedProduct.name} has been updated.`);
+  };
+
+  const handleUpdateWarehouseStock = (productId: string, warehouseId: string, newStock: number) => {
+    const oldTotalStock = getTotalStock(productId);
+    
+    setWarehouses(warehouses.map(w => {
+        if (w.id === warehouseId) {
+            const newW = { ...w, stock: { ...w.stock, [productId]: newStock } };
+            return newW;
+        }
+        return w;
+    }));
+    
+    const productToUpdate = products.find(p => p.id === productId);
+    if(productToUpdate){
+      const newTotalStock = warehouses.reduce((total, warehouse) => total + (warehouse.stock[productId] || 0), 0);
+      if (oldTotalStock === 0 && newTotalStock > 0) {
+          const notificationsForProduct = stockNotifications.filter(n => n.productId === productId);
+          if (notificationsForProduct.length > 0) {
+              console.log(`Simulating sending "back in stock" emails to:`, notificationsForProduct.map(n => n.email));
+              setStockNotifications(prev => prev.filter(n => n.productId !== productId));
+              showNotification(`${notificationsForProduct.length} users notified that ${productToUpdate.name} is back in stock.`);
+          }
+      }
+    }
   };
 
   const handleDeleteUser = (userId: string) => {
@@ -456,54 +436,30 @@ const App: React.FC = () => {
     showNotification(`Quote #${quoteId} status updated to ${status}.`);
   };
 
-
   useEffect(() => {
     if (isBuyNowFlow && cart.length > 0) {
       setIsBuyNowFlow(false);
-      handleCheckout();
+      handleNavigate('cart');
     }
   }, [isBuyNowFlow, cart]);
 
-
   const renderView = () => {
     const canGoBack = history.length > 1;
+    const productsWithTotalStock = products.map(p => ({ ...p, stock: getTotalStock(p.id) }));
+
     switch (currentView) {
-      case 'landing':
-        return <LandingPage onNavigate={handleNavigate} />;
-      case 'home':
-        return <HomePage onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} />;
-      case 'product':
-        return <ProductPage products={products} onAddToCart={addToCart} onBuyNow={handleBuyNow} onGoBack={handleGoBack} canGoBack={canGoBack} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} currentUser={currentUser} formatPrice={formatPrice} conversionRate={conversionRate} onStockNotificationSignup={handleStockNotificationSignup} />;
-      case 'cart':
-        return <CartPage cartItems={cart} onRemoveItem={removeFromCart} onUpdateQuantity={updateCartQuantity} onCheckout={handleCheckout} onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} formatPrice={formatPrice} />;
-      case 'orders':
-         if (!currentUser) {
-            handleNavigate('login');
-            return null;
-         }
-        return <OrdersPage orders={orders.filter(o => currentUser.isAdmin || o.user.id === currentUser.id)} onBuyAgain={addToCart} onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} formatPrice={formatPrice} />;
-      case 'contact':
-        return <ContactPage onGoBack={handleGoBack} canGoBack={canGoBack} />;
-      case 'login':
-        return <LoginPage onLogin={handleLogin} onGoBack={handleGoBack} canGoBack={canGoBack} />;
-      case 'returns':
-        return <ReturnPolicyPage onGoBack={handleGoBack} canGoBack={canGoBack} />;
-      case 'quote':
-        return <QuotePage currentUser={currentUser} onSubmit={handleQuoteRequestSubmit} onGenerateQuote={handleGenerateQuote} onGoBack={handleGoBack} canGoBack={canGoBack} />;
-      case 'wishlist':
-        if (!currentUser) {
-            handleNavigate('login');
-            return null;
-        }
-        return <WishlistPage wishlistItems={wishlist} onAddToCart={addToCart} onToggleWishlist={handleToggleWishlist} onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} formatPrice={formatPrice} />;
-      case 'admin':
-        if (!currentUser?.isAdmin) {
-            handleNavigate('home');
-            return null;
-        }
-        return <AdminPage users={users} orders={orders} products={products} quoteRequests={quoteRequests} onUpdateOrder={handleUpdateOrder} onUpdateProduct={handleUpdateProduct} onDeleteUser={handleDeleteUser} onUpdateQuoteStatus={handleUpdateQuoteStatus} onGoBack={handleGoBack} canGoBack={canGoBack} formatPrice={formatPrice} />;
-      default:
-        return <LandingPage onNavigate={handleNavigate} />;
+      case 'landing': return <LandingPage onNavigate={handleNavigate} />;
+      case 'home': return <HomePage onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} />;
+      case 'product': return <ProductPage products={productsWithTotalStock} onAddToCart={addToCart} onBuyNow={handleBuyNow} onGoBack={handleGoBack} canGoBack={canGoBack} wishlist={wishlist} onToggleWishlist={handleToggleWishlist} currentUser={currentUser} formatPrice={formatPrice} conversionRate={conversionRate} onStockNotificationSignup={handleStockNotificationSignup} />;
+      case 'cart': return <CartPage cartItems={cart.map(item => ({...item, product: {...item.product, stock: getTotalStock(item.product.id)}}))} onRemoveItem={removeFromCart} onUpdateQuantity={updateCartQuantity} onCheckout={handleCheckout} onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} formatPrice={formatPrice} />;
+      case 'orders': if (!currentUser) { handleNavigate('login'); return null; } return <OrdersPage orders={orders.filter(o => currentUser.isAdmin || o.user.id === currentUser.id)} onBuyAgain={addToCart} onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} formatPrice={formatPrice} />;
+      case 'contact': return <ContactPage onGoBack={handleGoBack} canGoBack={canGoBack} />;
+      case 'login': return <LoginPage onLogin={handleLogin} onGoBack={handleGoBack} canGoBack={canGoBack} orders={orders} warehouses={warehouses} />;
+      case 'returns': return <ReturnPolicyPage onGoBack={handleGoBack} canGoBack={canGoBack} />;
+      case 'quote': return <QuotePage currentUser={currentUser} onSubmit={handleQuoteRequestSubmit} onGenerateQuote={handleGenerateQuote} onGoBack={handleGoBack} canGoBack={canGoBack} />;
+      case 'wishlist': if (!currentUser) { handleNavigate('login'); return null; } return <WishlistPage wishlistItems={wishlist.map(p => ({...p, stock: getTotalStock(p.id)}))} onAddToCart={addToCart} onToggleWishlist={handleToggleWishlist} onNavigate={handleNavigate} onGoBack={handleGoBack} canGoBack={canGoBack} formatPrice={formatPrice} />;
+      case 'admin': if (!currentUser?.isAdmin) { handleNavigate('home'); return null; } return <AdminPage users={users} orders={orders} products={products} quoteRequests={quoteRequests} onUpdateOrder={handleUpdateOrder} onUpdateProduct={handleUpdateProduct} onDeleteUser={handleDeleteUser} onUpdateQuoteStatus={handleUpdateQuoteStatus} onGoBack={handleGoBack} canGoBack={canGoBack} formatPrice={formatPrice} warehouses={warehouses} onUpdateWarehouseStock={handleUpdateWarehouseStock} getTotalStock={getTotalStock} salesChartData={MOCK_SALES_CHART_DATA} hrData={MOCK_HR_DATA} marketingChartData={MOCK_MARKETING_CHART_DATA} />;
+      default: return <LandingPage onNavigate={handleNavigate} />;
     }
   };
   
@@ -523,15 +479,11 @@ const App: React.FC = () => {
         </button>
       )}
       {notification && (
-        <div className="fixed top-24 right-6 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg animate-fade-in-out">
+        <div className="fixed top-24 right-6 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg animate-fade-in-out z-[101]">
             {notification}
         </div>
       )}
-      <LogoutConfirmationModal
-        isOpen={isLogoutModalOpen}
-        onConfirm={handleConfirmLogout}
-        onCancel={handleCancelLogout}
-      />
+      <LogoutConfirmationModal isOpen={isLogoutModalOpen} onConfirm={handleConfirmLogout} onCancel={handleCancelLogout} />
       {currentView !== 'landing' && <BackToTopButton isVisible={showBackToTop} onClick={scrollToTop} />}
       <style>{`
         @keyframes fade-in-out {

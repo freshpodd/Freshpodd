@@ -3,7 +3,7 @@ import { type Product, type CartItem, type View } from '../types';
 import { ArrowLeftIcon, HeartIcon, ShoppingCartIcon } from './icons';
 
 interface WishlistPageProps {
-  wishlistItems: Product[];
+  wishlistItems: (Product & { stock: number })[];
   onToggleWishlist: (productId: string) => void;
   onAddToCart: (item: CartItem) => void;
   onNavigate: (view: View) => void;
@@ -14,7 +14,7 @@ interface WishlistPageProps {
 
 const WishlistPage: React.FC<WishlistPageProps> = ({ wishlistItems, onToggleWishlist, onAddToCart, onNavigate, onGoBack, canGoBack, formatPrice }) => {
 
-  const handleAddToCart = (product: Product) => {
+  const handleAddToCart = (product: Product & { stock: number }) => {
     onAddToCart({ product, quantity: 1 });
     onToggleWishlist(product.id); // Also remove from wishlist
   };

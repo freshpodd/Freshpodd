@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 import { type GeminiChatSession, type Currency, type QuoteRequest } from '../types';
 
@@ -10,10 +9,16 @@ if (!API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: API_KEY! });
 
-const CONVERSION_RATE_INR = 83.50;
+const CONVERSION_RATES: Record<Currency, number> = {
+    USD: 1,
+    INR: 83.50,
+    EUR: 0.92,
+    GBP: 0.79
+};
 
 const getSystemInstruction = (currency: Currency) => {
-    const price = currency === 'USD' ? 1299.99 : 1299.99 * CONVERSION_RATE_INR;
+    const rate = CONVERSION_RATES[currency];
+    const price = 1299.99 * rate;
     const formattedPrice = new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en-US', {
         style: 'currency',
         currency: currency,
@@ -25,13 +30,13 @@ Your primary goal is to assist users with their questions about the FreshPodd pr
 
 Product Information:
 - Name: FreshPodd Solar Cooler
-- Price: ${formattedPrice}
+- Price: Approximately ${formattedPrice} (price varies by model)
 - Key Features: Solar-powered, up to 72 hours of cooling, durable construction, portable design with wheels.
-- Capacity: 150 Liters
+- Capacity: Varies by model (e.g., 150 Liters)
 - Ideal for: Camping, farming, fishing, emergency preparedness, and off-grid living.
 
 Company Policies:
-- Shipping: Worldwide. Standard shipping takes 5-7 business days.
+- Shipping: Worldwide from our global warehouses. Standard shipping takes 5-10 business days.
 - Warranty: 2-year limited warranty.
 - Returns: 30-day money-back guarantee.
 - Customization: We offer custom solutions! If a user needs a different size, special features, or a bulk order, inform them that they can get a personalized quote by visiting our "Custom Quote" page.
@@ -44,7 +49,6 @@ Your persona:
 }
 
 
-// FIX: Updated createChatSession to use ai.chats.create and pass systemInstruction in config as per guidelines.
 export function createChatSession(currency: Currency): GeminiChatSession {
     const chat: Chat = ai.chats.create({
       model: 'gemini-2.5-flash',
@@ -55,8 +59,6 @@ export function createChatSession(currency: Currency): GeminiChatSession {
 
     return {
         chat,
-        // The chat object now manages history internally.
-        // The GeminiChatSession type includes history, so we provide an empty array.
         history: [],
     };
 }
@@ -67,14 +69,26 @@ export async function sendMessageToGemini(session: GeminiChatSession, message: s
     return result;
 }
 
+const getCurrencySymbol = (currency: Currency) => {
+    switch(currency) {
+        case 'USD': return '$';
+        case 'INR': return '₹';
+        case 'EUR': return '€';
+        case 'GBP': return '£';
+        default: return '$';
+    }
+}
+
+
 export async function getQuoteFromGemini(request: Omit<QuoteRequest, 'id' | 'status' | 'date'>, currency: Currency): Promise<string> {
-    const currencySymbol = currency === 'USD' ? '$' : '₹';
+    const currencySymbol = getCurrencySymbol(currency);
+    const conversionRate = CONVERSION_RATES[currency];
 
     const prompt = `
         You are a sales engineer for FreshPodd. Your task is to provide an estimated price quote for a custom solar cooler based on the user's specifications. 
         
         **CRITICAL INSTRUCTIONS:**
-        1.  Your final response MUST be ONLY the total estimated price, formatted as a string with currency symbols and commas where appropriate (e.g., "$15,500.00" or "₹1,295,750.00").
+        1.  Your final response MUST be ONLY the total estimated price, formatted as a string with currency symbols and commas where appropriate (e.g., "$15,500.00" or "€14,260.00").
         2.  DO NOT include any other text, explanation, breakdown, or introductory phrases. ONLY the final formatted number.
         3.  Use the specified currency: ${currency} (${currencySymbol}).
 
@@ -98,7 +112,7 @@ export async function getQuoteFromGemini(request: Omit<QuoteRequest, 'id' | 'sta
         *   Selected Features: ${request.features.join(', ') || 'None'}
         *   Other Custom Features: ${request.otherFeatures || 'None'}
 
-        Calculate the total estimated price based on these rules. If the currency is INR, convert the final USD total using a rate of 1 USD = ${CONVERSION_RATE_INR} INR.
+        Calculate the total estimated price based on these rules. If the currency is not USD, convert the final USD total using a rate of 1 USD = ${conversionRate} ${currency}.
         
         Remember, your only output should be the final formatted price string.
     `;

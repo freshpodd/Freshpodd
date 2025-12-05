@@ -4,7 +4,7 @@ import { StarIcon, XMarkIcon, PlusIcon, MinusIcon, ArrowLeftIcon, HeartIcon, Che
 import StockNotificationModal from './StockNotificationModal';
 
 interface ProductPageProps {
-  products: Product[];
+  products: (Product & { stock: number })[]; // Products now have total stock calculated
   onAddToCart: (item: CartItem) => void;
   onBuyNow: (item: CartItem) => void;
   onGoBack: () => void;
@@ -20,15 +20,16 @@ interface ProductPageProps {
 const ITEMS_PER_PAGE = 9;
 
 const ProductDetailModal: React.FC<{ 
-    product: Product; 
+    product: (Product & { stock: number });
     onAddToCart: (item: CartItem) => void; 
+    onBuyNow: (item: CartItem) => void;
     onClose: () => void; 
     isWishlisted: boolean;
     onToggleWishlist: (productId: string) => void;
     currentUser: User | null;
     formatPrice: (price: number) => string;
     onStockNotificationSignup: (productId: string, email: string) => void;
-}> = ({ product, onAddToCart, onClose, isWishlisted, onToggleWishlist, currentUser, formatPrice, onStockNotificationSignup }) => {
+}> = ({ product, onAddToCart, onBuyNow, onClose, isWishlisted, onToggleWishlist, currentUser, formatPrice, onStockNotificationSignup }) => {
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'description' | 'features' | 'specs'>('description');
   const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false);
@@ -38,12 +39,17 @@ const ProductDetailModal: React.FC<{
     onClose();
   };
   
-  // Prevent modal from closing when clicking inside
+  const handleBuyNow = () => {
+    onBuyNow({ product, quantity });
+    onClose();
+  };
+  
   const handleModalContentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
   };
 
   return (
+    <>
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose} aria-modal="true" role="dialog">
       <div className="bg-freshpodd-gray/50 backdrop-blur-sm border border-freshpodd-teal/30 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={handleModalContentClick}>
         <header className="flex justify-between items-center p-4 border-b border-freshpodd-gray">
@@ -76,332 +82,213 @@ const ProductDetailModal: React.FC<{
               <div className="text-gray-300 text-sm min-h-[100px] flex-grow">
                   {activeTab === 'description' && <p>{product.description}</p>}
                   {activeTab === 'features' && <ul className="list-disc list-inside space-y-1">{product.features.map(f => <li key={f}>{f}</li>)}</ul>}
-                  {activeTab === 'specs' && <div className="space-y-1">{Object.entries(product.specs).map(([key, value]) => <p key={key}><strong>{key}:</strong> {value}</p>)}</div>}
+                  {activeTab === 'specs' && <div className="space-y-1">{Object.entries(product.specs).map(([key, value]) => (<p key={key}><strong>{key}:</strong> {value}</p>))}</div>}
               </div>
 
-              <div className="mt-auto pt-6">
-                {product.stock > 0 ? (
-                    <>
-                        <div className="flex items-center gap-4 mb-4">
-                            <p className="font-semibold text-white">Quantity:</p>
-                            <div className="flex items-center border border-gray-600 rounded-md bg-freshpodd-gray">
-                                <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="p-2 text-gray-300 hover:bg-freshpodd-gray/50 rounded-l-md"><MinusIcon className="w-5 h-5"/></button>
-                                <input type="text" value={quantity} readOnly className="w-12 text-center text-white bg-transparent border-x border-gray-600 focus:outline-none"/>
-                                <button onClick={() => setQuantity(q => q + 1)} className="p-2 text-gray-300 hover:bg-freshpodd-gray/50 rounded-r-md"><PlusIcon className="w-5 h-5"/></button>
-                            </div>
-                        </div>
-                        <div className="flex items-center space-x-4">
-                            <button onClick={handleAddToCart} className="w-full bg-freshpodd-teal hover:bg-teal-500 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105 duration-300">
-                              Add to Cart
-                            </button>
-                            {currentUser && (
-                                <button onClick={() => onToggleWishlist(product.id)} className="p-3 border-2 border-freshpodd-teal rounded-lg hover:bg-freshpodd-teal/20 transition-colors">
-                                    <HeartIcon solid={isWishlisted} className={`w-6 h-6 ${isWishlisted ? 'text-freshpodd-teal' : 'text-gray-300'}`} />
-                                </button>
-                            )}
-                        </div>
-                    </>
-                ) : (
-                    <div className="text-center">
-                        <p className="text-lg text-red-400 font-semibold mb-4">Currently Out of Stock</p>
-                        <button
-                            onClick={() => setIsNotifyModalOpen(true)}
-                            className="w-full bg-freshpodd-blue border-2 border-freshpodd-teal text-freshpodd-teal font-bold py-3 px-6 rounded-lg text-lg transition-all duration-300 hover:bg-freshpodd-teal hover:text-white"
-                        >
-                            Notify Me When Available
-                        </button>
+               {product.stock > 0 && (
+                <div className="flex items-center space-x-4 my-6">
+                    <label htmlFor="quantity" className="font-semibold text-white">Quantity:</label>
+                    <div className="flex items-center border border-gray-600 rounded-md">
+                        <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="p-2 text-gray-300 hover:bg-freshpodd-gray"><MinusIcon className="w-4 h-4" /></button>
+                        <input type="number" id="quantity" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="w-12 bg-transparent text-center text-white focus:outline-none" />
+                        <button onClick={() => setQuantity(q => q + 1)} className="p-2 text-gray-300 hover:bg-freshpodd-gray"><PlusIcon className="w-4 h-4"/></button>
                     </div>
-                )}
-              </div>
+                </div>
+               )}
             </div>
           </div>
         </main>
+        <footer className="flex justify-between items-center p-4 border-t border-freshpodd-gray bg-freshpodd-gray/30">
+          <button
+              onClick={() => onToggleWishlist(product.id)}
+              className="flex items-center space-x-2 text-gray-300 hover:text-freshpodd-teal"
+          >
+              <HeartIcon solid={isWishlisted} className={`w-6 h-6 ${isWishlisted ? 'text-freshpodd-teal' : ''}`} />
+              <span>{isWishlisted ? 'Wishlisted' : 'Add to Wishlist'}</span>
+          </button>
+           <div className="flex space-x-4">
+              {product.stock > 0 ? (
+                <>
+                  <button onClick={handleAddToCart} className="bg-freshpodd-teal/20 text-freshpodd-teal font-bold py-3 px-6 rounded-md hover:bg-freshpodd-teal hover:text-white transition-colors">
+                      Add to Cart
+                  </button>
+                  <button onClick={handleBuyNow} className="bg-freshpodd-teal text-white font-bold py-3 px-6 rounded-md hover:bg-teal-500 transition-colors">
+                      Buy Now
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={() => setIsNotifyModalOpen(true)}
+                  className="bg-yellow-500 text-white font-bold py-3 px-6 rounded-md hover:bg-yellow-600 transition-colors"
+                >
+                  Notify Me When Available
+                </button>
+              )}
+          </div>
+        </footer>
       </div>
-       {isNotifyModalOpen && (
-            <StockNotificationModal
-                productName={product.name}
-                currentUser={currentUser}
-                onClose={() => setIsNotifyModalOpen(false)}
-                onSignup={(email) => {
-                    onStockNotificationSignup(product.id, email);
-                    setIsNotifyModalOpen(false);
-                }}
-            />
-        )}
     </div>
+    {isNotifyModalOpen && (
+        <StockNotificationModal
+            productName={product.name}
+            currentUser={currentUser}
+            onClose={() => setIsNotifyModalOpen(false)}
+            onSignup={(email) => {
+                onStockNotificationSignup(product.id, email);
+                setIsNotifyModalOpen(false);
+            }}
+        />
+    )}
+    </>
   );
 };
 
-
 const ProductCard: React.FC<{ 
-    product: Product; 
-    onSelect: (product: Product) => void;
+    product: (Product & { stock: number });
+    onClick: () => void; 
     isWishlisted: boolean;
     onToggleWishlist: (productId: string) => void;
-    currentUser: User | null;
     formatPrice: (price: number) => string;
-}> = ({ product, onSelect, isWishlisted, onToggleWishlist, currentUser, formatPrice }) => {
-    
+}> = ({ product, onClick, isWishlisted, onToggleWishlist, formatPrice }) => {
     const handleWishlistClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         onToggleWishlist(product.id);
     };
 
     return (
-        <div className="bg-freshpodd-gray/20 rounded-lg shadow-lg overflow-hidden flex flex-col group text-left w-full h-full relative">
-            <button onClick={() => onSelect(product)} className="w-full h-full flex flex-col focus:outline-none focus:ring-2 focus:ring-freshpodd-teal rounded-lg">
-                <div className="relative">
-                    <img src={product.imageUrl} alt={product.name} className="w-full h-56 object-cover" />
-                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-all duration-300"></div>
-                     <div className="absolute top-0 left-0 bg-freshpodd-blue/70 text-white text-xs font-bold px-3 py-1 m-2 rounded-full">View Details</div>
-                     {product.stock === 0 && (
-                        <div className="absolute top-0 right-0 bg-red-600 text-white text-xs font-bold px-3 py-1 m-2 rounded-full">OUT OF STOCK</div>
-                    )}
-                </div>
-                <div className="p-6 flex-grow flex flex-col">
-                    <h3 className="text-xl font-bold text-white mb-2">{product.name}</h3>
-                    <div className="flex items-center mb-4">
-                        <div className="flex items-center">
-                            {[...Array(5)].map((_, i) => (
-                                <StarIcon key={i} solid={i < Math.round(product.averageRating)} className="text-yellow-400 h-5 w-5"/>
-                            ))}
-                        </div>
-                        <span className="ml-2 text-gray-300 text-sm">{product.averageRating.toFixed(1)} ({product.reviewsCount} reviews)</span>
-                    </div>
-                    <p className="text-gray-400 text-sm mb-4 flex-grow">{product.description.substring(0, 100)}...</p>
-                    <div className="flex justify-between items-center mt-auto">
-                        <span className="text-2xl font-bold text-white">{formatPrice(product.price)}</span>
-                    </div>
-                </div>
+    <div onClick={onClick} className="bg-freshpodd-gray/20 rounded-lg shadow-lg overflow-hidden flex flex-col group cursor-pointer transform hover:scale-105 hover:shadow-freshpodd-teal/20 transition-all duration-300">
+        <div className="relative">
+            <img src={product.imageUrl} alt={product.name} className="w-full h-56 object-cover" />
+            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-all duration-300"></div>
+            <button onClick={handleWishlistClick} className="absolute top-4 right-4 bg-black/40 p-2 rounded-full text-white hover:text-freshpodd-teal transition-colors">
+                <HeartIcon solid={isWishlisted} className={`w-6 h-6 ${isWishlisted ? 'text-freshpodd-teal' : ''}`} />
             </button>
-            {currentUser && (
-                <button 
-                    onClick={handleWishlistClick} 
-                    className="absolute top-2 right-2 p-2 bg-freshpodd-gray/50 rounded-full hover:bg-freshpodd-gray/80 transition-colors z-10"
-                    aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-                >
-                    <HeartIcon solid={isWishlisted} className={`w-6 h-6 ${isWishlisted ? 'text-freshpodd-teal' : 'text-gray-300'}`}/>
-                </button>
+             {product.stock === 0 && (
+                <div className="absolute top-4 left-4 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-md">
+                    Out of Stock
+                </div>
             )}
         </div>
-    );
-};
-
-const ProductPage: React.FC<ProductPageProps> = ({ products, onAddToCart, onBuyNow, onGoBack, canGoBack, wishlist, onToggleWishlist, currentUser, formatPrice, conversionRate, onStockNotificationSignup }) => {
-    const [sortOrder, setSortOrder] = useState('rating-desc');
-    const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
-    const [selectedCapacity, setSelectedCapacity] = useState('all');
-    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-    const [currentPage, setCurrentPage] = useState(1);
-    
-    const maxPriceUSD = useMemo(() => Math.ceil(Math.max(...products.map(p => p.price)) / 100) * 100, [products]);
-    const [priceLimitUSD, setPriceLimitUSD] = useState(maxPriceUSD);
-
-    useEffect(() => {
-        setPriceLimitUSD(maxPriceUSD);
-    }, [maxPriceUSD]);
-
-
-    const allFeatures = useMemo(() => {
-        const featuresSet = new Set<string>();
-        products.forEach(p => p.features.forEach(f => featuresSet.add(f)));
-        return Array.from(featuresSet).sort();
-    }, [products]);
-
-    const allCapacities = useMemo(() => {
-        const capacitySet = new Set<string>();
-        products.forEach(p => capacitySet.add(p.specs['Capacity']));
-        return Array.from(capacitySet).sort((a,b) => parseInt(a) - parseInt(b));
-    }, [products]);
-
-    const handleFeatureChange = (feature: string) => {
-        setSelectedFeatures(prev =>
-            prev.includes(feature)
-            ? prev.filter(f => f !== feature)
-            : [...prev, feature]
-        );
-    };
-    
-    const resetFilters = () => {
-        setPriceLimitUSD(maxPriceUSD);
-        setSelectedFeatures([]);
-        setSelectedCapacity('all');
-    };
-
-    const filteredAndSortedProducts = useMemo(() => {
-        let result = [...products];
-
-        result = result.filter(p => p.price <= priceLimitUSD);
-
-        if (selectedCapacity !== 'all') {
-            result = result.filter(p => p.specs['Capacity'] === selectedCapacity);
-        }
-
-        if (selectedFeatures.length > 0) {
-            result = result.filter(p =>
-                selectedFeatures.every(feature => p.features.includes(feature))
-            );
-        }
-
-        result.sort((a, b) => {
-            switch (sortOrder) {
-                case 'price-asc': return a.price - b.price;
-                case 'price-desc': return b.price - a.price;
-                case 'rating-desc': return b.averageRating - a.averageRating;
-                default: return 0;
-            }
-        });
-
-        return result;
-    }, [products, sortOrder, priceLimitUSD, selectedFeatures, selectedCapacity]);
-
-    // Reset to page 1 when filters change
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [filteredAndSortedProducts]);
-
-
-    const totalPages = Math.ceil(filteredAndSortedProducts.length / ITEMS_PER_PAGE);
-    const paginatedProducts = useMemo(() => {
-        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-        return filteredAndSortedProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-    }, [filteredAndSortedProducts, currentPage]);
-
-
-    return (
-        <div className="bg-freshpodd-blue text-freshpodd-light py-12">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                {canGoBack && (
-                    <button onClick={onGoBack} className="flex items-center space-x-2 text-freshpodd-teal hover:text-teal-400 mb-8 font-semibold">
-                        <ArrowLeftIcon className="w-5 h-5" />
-                        <span>Back</span>
-                    </button>
-                )}
-                <div className="text-center mb-12">
-                    <h1 className="text-4xl font-extrabold text-white">Our Products</h1>
-                    <p className="text-lg text-gray-300 mt-2">Find the perfect FreshPodd for your next adventure.</p>
-                </div>
-
-                <div className="flex flex-col lg:flex-row gap-8">
-                    {/* Filters Sidebar */}
-                    <aside className="lg:w-1/4">
-                        <div className="bg-freshpodd-gray/20 p-6 rounded-lg sticky top-24">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold text-white">Filters</h2>
-                                <button onClick={resetFilters} className="text-sm text-freshpodd-teal hover:text-teal-400">Reset</button>
-                            </div>
-                            
-                            {/* Price Filter */}
-                            <div className="mb-6">
-                                <label htmlFor="price" className="block text-lg font-semibold text-white mb-2">Price</label>
-                                <input 
-                                  type="range" 
-                                  id="price" 
-                                  min="0" 
-                                  max={maxPriceUSD * conversionRate} 
-                                  value={priceLimitUSD * conversionRate} 
-                                  onChange={e => setPriceLimitUSD(Number(e.target.value) / conversionRate)} 
-                                  className="w-full h-2 bg-freshpodd-gray rounded-lg appearance-none cursor-pointer" 
-                                />
-                                <div className="text-center text-gray-300 mt-2">Up to {formatPrice(priceLimitUSD)}</div>
-                            </div>
-                            
-                            {/* Capacity Filter */}
-                            <div className="mb-6">
-                                <label htmlFor="capacity" className="block text-lg font-semibold text-white mb-2">Capacity</label>
-                                <select id="capacity" value={selectedCapacity} onChange={e => setSelectedCapacity(e.target.value)} className="w-full bg-freshpodd-gray text-white p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-freshpodd-teal">
-                                    <option value="all">All Capacities</option>
-                                    {allCapacities.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
-                            </div>
-                            
-                            {/* Features Filter */}
-                            <div>
-                                <h3 className="text-lg font-semibold text-white mb-3">Features</h3>
-                                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                                    {allFeatures.map(feature => (
-                                        <label key={feature} className="flex items-center text-gray-300 cursor-pointer">
-                                            <input type="checkbox" checked={selectedFeatures.includes(feature)} onChange={() => handleFeatureChange(feature)} className="h-4 w-4 rounded bg-freshpodd-gray border-gray-600 text-freshpodd-teal focus:ring-freshpodd-teal" />
-                                            <span className="ml-3">{feature}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </aside>
-
-                    {/* Product Grid */}
-                    <main className="lg:w-3/4">
-                        <div className="flex justify-between items-center mb-6">
-                            <p className="text-gray-300">{filteredAndSortedProducts.length} Products</p>
-                            <select value={sortOrder} onChange={e => setSortOrder(e.target.value)} className="bg-freshpodd-gray text-white p-2 rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-freshpodd-teal">
-                                <option value="rating-desc">Sort by: Rating</option>
-                                <option value="price-asc">Sort by: Price (Low to High)</option>
-                                <option value="price-desc">Sort by: Price (High to Low)</option>
-                            </select>
-                        </div>
-                        {paginatedProducts.length > 0 ? (
-                            <>
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                                    {paginatedProducts.map(product => (
-                                        <ProductCard 
-                                            key={product.id} 
-                                            product={product} 
-                                            onSelect={setSelectedProduct} 
-                                            isWishlisted={wishlist.some(p => p.id === product.id)}
-                                            onToggleWishlist={onToggleWishlist}
-                                            currentUser={currentUser}
-                                            formatPrice={formatPrice}
-                                        />
-                                    ))}
-                                </div>
-                                {totalPages > 1 && (
-                                    <div className="flex items-center justify-center space-x-4 mt-12">
-                                        <button
-                                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                          disabled={currentPage === 1}
-                                          className="flex items-center space-x-2 px-4 py-2 bg-freshpodd-gray/50 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-freshpodd-gray transition-colors"
-                                        >
-                                          <ChevronLeftIcon className="w-5 h-5" />
-                                          <span>Previous</span>
-                                        </button>
-                                        <span className="font-semibold text-white">
-                                          Page {currentPage} of {totalPages}
-                                        </span>
-                                        <button
-                                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                          disabled={currentPage === totalPages}
-                                          className="flex items-center space-x-2 px-4 py-2 bg-freshpodd-gray/50 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-freshpodd-gray transition-colors"
-                                        >
-                                          <span>Next</span>
-                                          <ChevronRightIcon className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                )}
-                            </>
-                        ) : (
-                            <div className="text-center py-20 bg-freshpodd-gray/20 rounded-lg">
-                                <p className="text-xl text-gray-300">No products match your criteria.</p>
-                                <button onClick={resetFilters} className="mt-4 bg-freshpodd-teal hover:bg-teal-500 text-white font-bold py-2 px-4 rounded-md">Clear Filters</button>
-                            </div>
-                        )}
-                    </main>
-                </div>
+        <div className="p-6 flex-grow flex flex-col">
+            <h3 className="text-xl font-bold text-white mb-2">{product.name}</h3>
+            <div className="flex items-center mb-4">
+                {[...Array(5)].map((_, i) => (
+                    <StarIcon key={i} solid={i < Math.round(product.averageRating)} className="text-yellow-400 h-4 w-4"/>
+                ))}
+                <span className="ml-2 text-gray-400 text-xs">{product.averageRating.toFixed(1)} ({product.reviewsCount})</span>
             </div>
-            {selectedProduct && (
-                <ProductDetailModal 
-                    product={selectedProduct} 
-                    onAddToCart={onAddToCart} 
-                    onClose={() => setSelectedProduct(null)} 
-                    isWishlisted={wishlist.some(p => p.id === selectedProduct.id)}
-                    onToggleWishlist={onToggleWishlist}
-                    currentUser={currentUser}
-                    formatPrice={formatPrice}
-                    onStockNotificationSignup={onStockNotificationSignup}
-                />
-            )}
+            <div className="flex justify-between items-center mt-auto">
+                <span className="text-2xl font-bold text-white">{formatPrice(product.price)}</span>
+            </div>
         </div>
-    );
+    </div>
+  )};
+
+const ProductPage: React.FC<ProductPageProps> = (props) => {
+  const { products, onAddToCart, onBuyNow, onGoBack, canGoBack, wishlist, onToggleWishlist, currentUser, formatPrice, conversionRate, onStockNotificationSignup } = props;
+  const [selectedProduct, setSelectedProduct] = useState<(Product & { stock: number }) | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [priceRange, setPriceRange] = useState(3000 * conversionRate);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    // Reset price range when currency changes
+    setPriceRange(3000 * conversionRate);
+  }, [conversionRate]);
+  
+  const filteredProducts = useMemo(() => {
+    return products
+        .filter(p => p.price * conversionRate <= priceRange)
+        .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [products, priceRange, searchTerm, conversionRate]);
+
+  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+  const paginatedProducts = filteredProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  return (
+    <div className="min-h-screen bg-freshpodd-blue text-freshpodd-light py-12">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        {canGoBack && (
+            <button onClick={onGoBack} className="flex items-center space-x-2 text-freshpodd-teal hover:text-teal-400 mb-8 font-semibold">
+                <ArrowLeftIcon className="w-5 h-5" />
+                <span>Back</span>
+            </button>
+        )}
+        <h1 className="text-4xl font-extrabold text-white mb-8">Our Products</h1>
+        
+        <div className="flex flex-col md:flex-row gap-8">
+            {/* Filters */}
+            <aside className="w-full md:w-1/4">
+                <div className="bg-freshpodd-gray/20 p-6 rounded-lg sticky top-24">
+                    <h3 className="text-xl font-bold text-white mb-4">Filters</h3>
+                    <div className="space-y-6">
+                        <div>
+                            <label htmlFor="search" className="block text-sm font-medium text-gray-300 mb-2">Search</label>
+                            <input type="text" id="search" placeholder="Search by name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-freshpodd-gray text-white p-2 rounded-md border border-gray-600" />
+                        </div>
+                        <div>
+                             <label htmlFor="price-range" className="block text-sm font-medium text-gray-300 mb-2">Price Range</label>
+                            <input type="range" id="price-range" min={500 * conversionRate} max={3000 * conversionRate} value={priceRange} onChange={e => setPriceRange(Number(e.target.value))} className="w-full h-2 bg-freshpodd-gray rounded-lg appearance-none cursor-pointer" />
+                            <div className="text-center text-white mt-2 font-bold">Up to {formatPrice(priceRange / conversionRate)}</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            {/* Product Grid */}
+            <main className="w-full md:w-3/4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {paginatedProducts.map(product => (
+                        <ProductCard 
+                            key={product.id} 
+                            product={product} 
+                            onClick={() => setSelectedProduct(product)} 
+                            isWishlisted={wishlist.some(p => p.id === product.id)}
+                            onToggleWishlist={onToggleWishlist}
+                            formatPrice={formatPrice}
+                        />
+                    ))}
+                </div>
+                 {/* Pagination */}
+                 {totalPages > 1 && (
+                    <div className="flex justify-center items-center mt-12 space-x-4">
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="p-2 rounded-md bg-freshpodd-gray/50 hover:bg-freshpodd-gray disabled:opacity-50"
+                        >
+                            <ChevronLeftIcon className="w-6 h-6 text-white"/>
+                        </button>
+                        <span className="text-white font-semibold">
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="p-2 rounded-md bg-freshpodd-gray/50 hover:bg-freshpodd-gray disabled:opacity-50"
+                        >
+                            <ChevronRightIcon className="w-6 h-6 text-white"/>
+                        </button>
+                    </div>
+                )}
+            </main>
+        </div>
+      </div>
+      {selectedProduct && (
+        <ProductDetailModal 
+            product={selectedProduct} 
+            onAddToCart={onAddToCart} 
+            onBuyNow={onBuyNow}
+            onClose={() => setSelectedProduct(null)} 
+            isWishlisted={wishlist.some(p => p.id === selectedProduct.id)}
+            onToggleWishlist={onToggleWishlist}
+            currentUser={currentUser}
+            formatPrice={formatPrice}
+            onStockNotificationSignup={onStockNotificationSignup}
+        />
+      )}
+    </div>
+  );
 };
 
 export default ProductPage;
