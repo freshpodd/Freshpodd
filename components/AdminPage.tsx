@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { type User, type Order, type Product, type QuoteRequest, type Warehouse, type ChartDataPoint, type HrDepartment } from '../types';
-import { XMarkIcon, ArrowLeftIcon, ChartBarIcon, TruckIcon, BriefcaseIcon, ChartPieIcon } from './icons';
+import { XMarkIcon, ArrowLeftIcon, ChartBarIcon, TruckIcon, BriefcaseIcon, ChartPieIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon, CalendarIcon, ArrowDownTrayIcon, ShoppingCartIcon, UserCircleIcon } from './icons';
 
 interface AdminPageProps {
   users: User[];
@@ -22,73 +22,148 @@ interface AdminPageProps {
   marketingChartData: ChartDataPoint[];
 }
 
-const StatCard: React.FC<{ title: string; value: string | number, icon: React.ReactNode, subtext?: string }> = ({ title, value, icon, subtext }) => (
-    <div className="bg-freshpodd-gray/20 p-5 rounded-lg flex items-start space-x-4">
-        <div className="bg-freshpodd-gray/40 p-3 rounded-lg">{icon}</div>
+const StatCard: React.FC<{ title: string; value: string | number; icon: React.ReactNode; trend?: number; trendLabel?: string }> = ({ title, value, icon, trend, trendLabel }) => (
+    <div className="bg-freshpodd-gray/20 p-5 rounded-lg flex flex-col justify-between shadow-lg border border-white/5 h-full transform hover:scale-105 transition-transform duration-200">
+        <div className="flex justify-between items-start mb-4">
+            <div className="bg-freshpodd-gray/40 p-3 rounded-lg text-freshpodd-teal">{icon}</div>
+            {trend !== undefined && (
+                <div className={`flex items-center text-xs font-semibold px-2 py-1 rounded-full ${trend >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                    {trend >= 0 ? <ArrowTrendingUpIcon className="w-3 h-3 mr-1" /> : <ArrowTrendingDownIcon className="w-3 h-3 mr-1" />}
+                    <span>{Math.abs(trend)}%</span>
+                </div>
+            )}
+        </div>
         <div>
-            <p className="text-gray-400 text-sm font-medium">{title}</p>
-            <p className="text-2xl font-bold text-white">{value}</p>
-            {subtext && <p className="text-xs text-gray-500">{subtext}</p>}
+            <p className="text-gray-400 text-sm font-medium uppercase tracking-wide">{title}</p>
+            <p className="text-3xl font-bold text-white mt-1">{value}</p>
+            {trendLabel && <p className="text-xs text-gray-500 mt-2">{trendLabel}</p>}
         </div>
     </div>
 );
 
-const BarChart: React.FC<{ data: ChartDataPoint[], title: string, formatValue: (value: number) => string | number }> = ({ data, title, formatValue }) => {
-    const maxValue = Math.max(...data.map(d => d.value));
+const BarChart: React.FC<{ data: ChartDataPoint[]; title: string; formatValue: (value: number) => string | number; color?: string }> = ({ data, title, formatValue, color = 'bg-freshpodd-teal' }) => {
+    const maxValue = Math.max(...data.map(d => d.value), 1);
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
     return (
-        <div className="bg-freshpodd-gray/20 p-6 rounded-lg">
-            <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
-            <div className="flex justify-between items-end h-48 space-x-2">
-                {data.map(d => (
-                    <div key={d.label} className="flex-1 flex flex-col items-center justify-end">
-                        <div className="text-xs text-gray-300 transform-gpu" title={formatValue(d.value).toString()}>{formatValue(d.value)}</div>
-                        <div className="w-full bg-freshpodd-teal rounded-t-md hover:bg-teal-400 transition-colors" style={{ height: `${(d.value / maxValue) * 100}%` }}></div>
-                        <div className="text-xs text-gray-400 mt-1">{d.label}</div>
+        <div className="bg-freshpodd-gray/20 p-6 rounded-lg shadow-lg border border-white/5 h-full flex flex-col">
+            <h3 className="text-lg font-semibold text-white mb-6 flex items-center">{title}</h3>
+            <div className="flex justify-between items-end flex-grow space-x-3 relative min-h-[200px]">
+                {data.map((d, i) => (
+                    <div key={d.label} className="flex-1 flex flex-col items-center justify-end relative group" onMouseEnter={() => setHoveredIndex(i)} onMouseLeave={() => setHoveredIndex(null)}>
+                         {hoveredIndex === i && (
+                            <div className="absolute -top-10 bg-black/80 text-white text-xs py-1 px-2 rounded shadow-lg whitespace-nowrap z-10 pointer-events-none">
+                                {d.label}: {formatValue(d.value)}
+                            </div>
+                         )}
+                        <div className={`w-full ${color} rounded-t-sm opacity-80 hover:opacity-100 transition-all duration-300`} style={{ height: `${(d.value / maxValue) * 100}%` }}></div>
+                        <div className="text-xs text-gray-400 mt-2 truncate w-full text-center">{d.label}</div>
                     </div>
                 ))}
+                {/* Horizontal grid lines background */}
+                <div className="absolute inset-0 z-[-1] flex flex-col justify-between pointer-events-none opacity-20">
+                     {[0, 0.25, 0.5, 0.75, 1].map((tick) => (
+                        <div key={tick} className="border-t border-gray-500 w-full h-0"></div>
+                     ))}
+                </div>
             </div>
         </div>
     );
 };
 
-const LineChart: React.FC<{ data: ChartDataPoint[], title: string }> = ({ data, title }) => {
+const AreaChart: React.FC<{ data: ChartDataPoint[]; title: string }> = ({ data, title }) => {
     const maxValue = Math.max(...data.map(d => d.value));
     const points = data.map((d, i) => `${(i / (data.length - 1)) * 100},${100 - (d.value / maxValue) * 100}`).join(' ');
+    // Close the loop for area fill
+    const areaPoints = `${points} 100,100 0,100`;
+
     return (
-        <div className="bg-freshpodd-gray/20 p-6 rounded-lg">
-            <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
-            <div className="h-48 relative">
+        <div className="bg-freshpodd-gray/20 p-6 rounded-lg shadow-lg border border-white/5">
+            <div className="flex justify-between items-center mb-6">
+                 <h3 className="text-lg font-semibold text-white">{title}</h3>
+                 <div className="flex space-x-2">
+                    <span className="w-3 h-3 bg-freshpodd-teal/50 rounded-full"></span>
+                    <span className="text-xs text-gray-400">Trend</span>
+                 </div>
+            </div>
+            <div className="h-64 relative w-full overflow-hidden">
                 <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="none">
-                    <polyline fill="none" stroke="#14b8a6" strokeWidth="2" points={points} />
+                    <defs>
+                        <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.5" />
+                            <stop offset="100%" stopColor="#14b8a6" stopOpacity="0" />
+                        </linearGradient>
+                    </defs>
+                    <polygon points={areaPoints} fill="url(#chartGradient)" />
+                    <polyline fill="none" stroke="#14b8a6" strokeWidth="1.5" points={points} vectorEffect="non-scaling-stroke" />
+                    {/* Data Points */}
+                    {data.map((d, i) => (
+                        <circle 
+                            key={i} 
+                            cx={(i / (data.length - 1)) * 100} 
+                            cy={100 - (d.value / maxValue) * 100} 
+                            r="1" 
+                            fill="#fff" 
+                            className="hover:r-2 transition-all cursor-pointer"
+                        >
+                            <title>{d.label}: {d.value}</title>
+                        </circle>
+                    ))}
                 </svg>
+                 {/* X Axis Labels */}
+                 <div className="flex justify-between mt-2">
+                    {data.map((d,i) => (
+                        <span key={i} className="text-xs text-gray-500">{d.label}</span>
+                    ))}
+                 </div>
             </div>
         </div>
     );
 };
 
-const PieChart: React.FC<{ data: HrDepartment[], title: string }> = ({ data, title }) => {
-    const total = data.reduce((sum, d) => sum + d.count, 0);
+const DonutChart: React.FC<{ data: { label: string; value: number; color: string }[]; title: string }> = ({ data, title }) => {
+    const total = data.reduce((sum, d) => sum + d.value, 0);
     let cumulative = 0;
+
     return (
-         <div className="bg-freshpodd-gray/20 p-6 rounded-lg">
-            <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
-            <div className="flex flex-col md:flex-row items-center gap-6">
-                 <div className="relative w-40 h-40">
-                    <svg viewBox="0 0 32 32" className="transform -rotate-90">
+         <div className="bg-freshpodd-gray/20 p-6 rounded-lg shadow-lg border border-white/5 h-full">
+            <h3 className="text-lg font-semibold text-white mb-6">{title}</h3>
+            <div className="flex flex-col items-center justify-center h-full">
+                 <div className="relative w-48 h-48 mb-6">
+                    <svg viewBox="0 0 32 32" className="transform -rotate-90 w-full h-full">
                         {data.map(d => {
-                            const percentage = (d.count / total) * 100;
+                            if (total === 0) return null;
+                            const percentage = (d.value / total) * 100;
                             const dasharray = `${percentage} ${100 - percentage}`;
                             const dashoffset = -cumulative;
                             cumulative += percentage;
-                            return <circle key={d.name} r="16" cx="16" cy="16" fill="transparent" stroke={d.color} strokeWidth="32" strokeDasharray={dasharray} strokeDashoffset={dashoffset}></circle>
+                            return (
+                                <circle 
+                                    key={d.label} 
+                                    r="16" cx="16" cy="16" 
+                                    fill="transparent" 
+                                    stroke={d.color} 
+                                    strokeWidth="8" 
+                                    strokeDasharray={dasharray} 
+                                    strokeDashoffset={dashoffset}
+                                    className="hover:opacity-80 transition-opacity cursor-pointer"
+                                >
+                                    <title>{d.label}: {Math.round(percentage)}%</title>
+                                </circle>
+                            )
                         })}
+                        {/* Center text */}
+                        <text x="50%" y="50%" textAnchor="middle" dy="0.3em" className="text-[0.15rem] fill-white font-bold" transform="rotate(90 16 16)">
+                            Total
+                        </text>
                     </svg>
                 </div>
-                <div className="flex flex-col space-y-2">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 w-full">
                     {data.map(d => (
-                         <div key={d.name} className="flex items-center text-sm">
-                             <span className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: d.color }}></span>
-                             <span className="text-gray-300">{d.name}: {d.count}</span>
+                         <div key={d.label} className="flex items-center text-xs">
+                             <span className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: d.color }}></span>
+                             <span className="text-gray-300 truncate flex-grow">{d.label}</span>
+                             <span className="text-white font-bold">{d.value}</span>
                          </div>
                     ))}
                 </div>
@@ -97,53 +172,154 @@ const PieChart: React.FC<{ data: HrDepartment[], title: string }> = ({ data, tit
     )
 }
 
-const DashboardTab: React.FC<Pick<AdminPageProps, 'orders' | 'users' | 'quoteRequests' | 'warehouses' | 'formatPrice' | 'salesChartData' | 'hrData' | 'marketingChartData'>> = (props) => {
-    const { orders, users, quoteRequests, warehouses, formatPrice, salesChartData, hrData, marketingChartData } = props;
-    const totalRevenue = useMemo(() => orders.reduce((sum, order) => sum + order.total, 0), [orders]);
+const RecentActivityList: React.FC<{ orders: Order[], formatPrice: (p: number) => string }> = ({ orders, formatPrice }) => (
+    <div className="bg-freshpodd-gray/20 rounded-lg shadow-lg border border-white/5 h-full overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-freshpodd-gray/50">
+            <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
+        </div>
+        <div className="overflow-y-auto flex-grow p-0">
+            {orders.length === 0 ? (
+                <p className="p-6 text-gray-500 text-center">No recent activity.</p>
+            ) : (
+                <ul className="divide-y divide-freshpodd-gray/30">
+                    {orders.slice(0, 6).map(order => (
+                        <li key={order.id} className="p-4 hover:bg-white/5 transition-colors">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                    <div className="bg-freshpodd-teal/20 p-2 rounded-full">
+                                        <ShoppingCartIcon className="w-4 h-4 text-freshpodd-teal"/>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-white">Order #{order.id}</p>
+                                        <p className="text-xs text-gray-400">{order.user.name} placed a new order</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-sm font-bold text-white">{formatPrice(order.total)}</p>
+                                    <p className="text-xs text-gray-500">{order.date}</p>
+                                </div>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+        <div className="p-4 border-t border-freshpodd-gray/50 text-center">
+             <button className="text-freshpodd-teal text-sm font-semibold hover:text-white transition-colors">View All Activity</button>
+        </div>
+    </div>
+);
+
+
+const DashboardTab: React.FC<Pick<AdminPageProps, 'orders' | 'users' | 'quoteRequests' | 'warehouses' | 'formatPrice' | 'salesChartData' | 'hrData' | 'marketingChartData' | 'products'>> = (props) => {
+    const { orders, users, quoteRequests, warehouses, formatPrice, salesChartData, hrData, marketingChartData, products } = props;
+    
+    // Derived Metrics
+    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
     const avgOrderValue = totalRevenue / (orders.length || 1);
-    {/* FIX: Explicitly typing the accumulator and value in reduce to prevent incorrect type inference. */}
-    const totalStock = warehouses.reduce((sum: number, w) => sum + Object.values(w.stock).reduce((s: number, count: number) => s + count, 0), 0);
+    const totalStock = warehouses.reduce((sum: number, w) => sum + Object.values(w.stock).reduce((s: number, c: number) => s + c, 0), 0);
     const totalEmployees = hrData.reduce((sum: number, dept) => sum + dept.count, 0);
+    
+    // Product Sales Share Logic
+    const salesByProduct = useMemo(() => {
+        const counts: Record<string, number> = {};
+        orders.forEach(order => {
+            order.items.forEach(item => {
+                counts[item.product.name] = (counts[item.product.name] || 0) + item.quantity;
+            });
+        });
+        const colors = ['#14b8a6', '#3b82f6', '#f97316', '#8b5cf6', '#ec4899'];
+        return Object.entries(counts).map(([label, value], index) => ({
+            label,
+            value,
+            color: colors[index % colors.length]
+        })).sort((a, b) => b.value - a.value).slice(0, 5); // Top 5
+    }, [orders]);
+
+    const handleExport = () => {
+        alert("Downloading CSV report...");
+    };
 
     return (
-        <div className="space-y-8">
-            {/* Sales */}
-            <section>
-                <h2 className="text-2xl font-bold text-white mb-4">Sales Performance Summary</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <StatCard title="Total Revenue" value={formatPrice(totalRevenue)} icon={<ChartBarIcon className="w-6 h-6 text-freshpodd-teal" />} />
-                    <StatCard title="Average Order Value" value={formatPrice(avgOrderValue)} icon={<span className="text-2xl">📈</span>} />
-                    <StatCard title="Total Orders" value={orders.length} icon={<span className="text-2xl">📦</span>} />
+        <div className="space-y-6 animate-fade-in">
+             {/* Header Controls */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-freshpodd-gray/20 p-4 rounded-lg border border-white/5">
+                <div className="flex items-center space-x-2 text-gray-400 text-sm">
+                    <CalendarIcon className="w-5 h-5" />
+                    <span>Last 30 Days</span>
+                    <span className="text-gray-600">|</span>
+                    <span className="text-green-400 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Live Updates</span>
                 </div>
-                <BarChart data={salesChartData} title="Revenue by Month" formatValue={(v) => formatPrice(v)} />
-            </section>
-             {/* Logistics */}
-            <section>
-                <h2 className="text-2xl font-bold text-white mb-4">Logistics & Operations</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <StatCard title="Total Stock (All Warehouses)" value={totalStock} icon={<TruckIcon className="w-6 h-6 text-freshpodd-teal" />} />
-                    <StatCard title="Shipments" value={orders.filter(o => o.status === 'Shipped').length} icon={<span className="text-2xl">✈️</span>} />
-                    <StatCard title="Warehouses" value={warehouses.length} icon={<span className="text-2xl">🏢</span>} />
+                <div className="flex gap-3">
+                     <button className="flex items-center space-x-2 bg-freshpodd-gray text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors text-sm">
+                        <CalendarIcon className="w-4 h-4" />
+                        <span>Filter Date</span>
+                     </button>
+                     <button onClick={handleExport} className="flex items-center space-x-2 bg-freshpodd-teal text-white px-4 py-2 rounded-md hover:bg-teal-600 transition-colors text-sm shadow-lg shadow-teal-500/20">
+                        <ArrowDownTrayIcon className="w-4 h-4" />
+                        <span>Export Report</span>
+                     </button>
                 </div>
-                 <BarChart data={warehouses.map(w => ({ label: w.name.split(' ')[0], value: Object.values(w.stock).reduce((s: number, c: number) => s + c, 0) }))} title="Live Stock Levels by Warehouse" formatValue={v => v} />
-            </section>
-            {/* HR & Marketing */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <section>
-                    <h2 className="text-2xl font-bold text-white mb-4">Human Resources</h2>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <StatCard title="Total Employees" value={totalEmployees} icon={<BriefcaseIcon className="w-6 h-6 text-freshpodd-teal" />} />
-                     </div>
-                    <PieChart data={hrData} title="Department Breakdown" />
-                </section>
-                <section>
-                    <h2 className="text-2xl font-bold text-white mb-4">Marketing Analytics</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <StatCard title="Website Traffic" value={`${marketingChartData[marketingChartData.length-1].value.toLocaleString()}`} subtext="Last 30 days" icon={<span className="text-2xl">🌐</span>} />
-                        <StatCard title="Conversion Rate" value="2.5%" icon={<span className="text-2xl">🎯</span>} />
-                    </div>
-                     <LineChart data={marketingChartData} title="Website Traffic Over Time" />
-                </section>
+            </div>
+
+            {/* KPI Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard title="Total Revenue" value={formatPrice(totalRevenue)} icon={<ChartBarIcon className="w-6 h-6" />} trend={12.5} trendLabel="vs. previous 30 days" />
+                <StatCard title="Active Orders" value={orders.length} icon={<ShoppingCartIcon className="w-6 h-6" />} trend={5.2} trendLabel="Processing or Shipped" />
+                <StatCard title="Avg. Order Value" value={formatPrice(avgOrderValue)} icon={<span className="text-xl font-bold">$</span>} trend={-2.1} trendLabel="vs. previous 30 days" />
+                <StatCard title="Conversion Rate" value="3.2%" icon={<ArrowTrendingUpIcon className="w-6 h-6" />} trend={0.8} trendLabel="From 2.4% last month" />
+            </div>
+
+            {/* Main Analytics Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                    <AreaChart data={salesChartData} title="Revenue Trend Overview" />
+                </div>
+                <div>
+                     <DonutChart data={salesByProduct} title="Top Selling Products" />
+                </div>
+            </div>
+
+            {/* Operations & User Metrics Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-1">
+                    <BarChart 
+                        data={warehouses.map(w => ({ label: w.name.split(' ')[0], value: (Object.values(w.stock) as number[]).reduce((s, c) => s + c, 0) }))} 
+                        title="Global Stock Levels" 
+                        formatValue={v => v}
+                        color="bg-blue-500"
+                    />
+                </div>
+                <div className="lg:col-span-1">
+                     <BarChart 
+                         data={marketingChartData} 
+                         title="Daily Active Users" 
+                         formatValue={v => v.toLocaleString()}
+                         color="bg-purple-500"
+                    />
+                </div>
+                <div className="lg:col-span-1">
+                    <RecentActivityList orders={orders} formatPrice={formatPrice} />
+                </div>
+            </div>
+            
+            {/* HR Section (Collapsible or smaller) */}
+            <div className="bg-freshpodd-gray/20 p-6 rounded-lg border border-white/5">
+                 <div className="flex items-center mb-4 space-x-2">
+                    <BriefcaseIcon className="w-5 h-5 text-gray-400" />
+                    <h3 className="text-lg font-semibold text-white">Internal Resources</h3>
+                 </div>
+                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                     {hrData.map(dept => (
+                         <div key={dept.name} className="flex items-center space-x-3 bg-freshpodd-gray/30 p-3 rounded-lg">
+                             <div className="w-3 h-3 rounded-full" style={{backgroundColor: dept.color}}></div>
+                             <div>
+                                 <p className="text-xs text-gray-400">{dept.name}</p>
+                                 <p className="text-lg font-bold text-white">{dept.count}</p>
+                             </div>
+                         </div>
+                     ))}
+                 </div>
             </div>
         </div>
     );
@@ -254,10 +430,16 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         <span>Back</span>
                     </button>
                 )}
-                <h1 className="text-4xl font-extrabold text-white mb-8">Admin Dashboard</h1>
+                <div className="flex justify-between items-center mb-8">
+                     <h1 className="text-4xl font-extrabold text-white">Admin Portal</h1>
+                     <div className="flex items-center space-x-2 text-gray-400 text-sm">
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        <span>System Online</span>
+                     </div>
+                </div>
 
-                <div className="bg-freshpodd-gray/20 p-2 sm:p-6 rounded-lg shadow-lg">
-                    <div className="border-b border-freshpodd-gray mb-6">
+                <div className="bg-freshpodd-gray/10 p-2 sm:p-6 rounded-lg shadow-2xl backdrop-blur-sm border border-white/5">
+                    <div className="border-b border-freshpodd-gray/50 mb-6">
                         <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto" aria-label="Tabs">
                              {Object.entries(tabs).map(([key, value]) => (
                                 <button
@@ -267,7 +449,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                                         activeTab === key
                                         ? 'border-freshpodd-teal text-freshpodd-teal'
                                         : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-500'
-                                    } whitespace-nowrap py-4 px-1 sm:px-2 border-b-2 font-medium text-sm sm:text-base`}
+                                    } whitespace-nowrap py-4 px-1 sm:px-2 border-b-2 font-medium text-sm sm:text-base transition-colors duration-200`}
                                 >
                                     {value}
                                 </button>
@@ -275,11 +457,11 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         </nav>
                     </div>
                     
-                    <div className="mt-8">
+                    <div className="mt-8 min-h-[500px]">
                         {activeTab === 'dashboard' && <DashboardTab {...props} />}
                         {activeTab === 'orders' && (
                             <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-freshpodd-gray">
+                                <table className="min-w-full divide-y divide-freshpodd-gray/50">
                                     <thead className="bg-freshpodd-gray/30">
                                         <tr>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Order</th>
@@ -289,9 +471,9 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="bg-freshpodd-blue divide-y divide-freshpodd-gray">
+                                    <tbody className="bg-freshpodd-blue/50 divide-y divide-freshpodd-gray/50">
                                         {orders.map(order => (
-                                            <tr key={order.id}>
+                                            <tr key={order.id} className="hover:bg-freshpodd-gray/20 transition-colors">
                                                 <td className="px-6 py-4 text-sm font-medium text-white">{order.id}<div className="text-xs text-gray-500">{order.date}</div></td>
                                                 <td className="px-6 py-4 text-sm text-gray-300">{order.user.name}</td>
                                                 <td className="px-6 py-4 text-sm text-gray-300">{formatPrice(order.total)}</td>
@@ -313,7 +495,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         )}
                         {activeTab === 'products' && (
                              <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-freshpodd-gray">
+                                <table className="min-w-full divide-y divide-freshpodd-gray/50">
                                     <thead className="bg-freshpodd-gray/30">
                                         <tr>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Product</th>
@@ -322,9 +504,9 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                                             <th className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
                                         </tr>
                                     </thead>
-                                    <tbody className="bg-freshpodd-blue divide-y divide-freshpodd-gray">
+                                    <tbody className="bg-freshpodd-blue/50 divide-y divide-freshpodd-gray/50">
                                         {products.map(product => (
-                                            <tr key={product.id}>
+                                            <tr key={product.id} className="hover:bg-freshpodd-gray/20 transition-colors">
                                                 <td className="px-6 py-4 text-sm font-medium text-white">{product.name}</td>
                                                 <td className="px-6 py-4 text-sm text-gray-300">${product.price.toFixed(2)}</td>
                                                 <td className="px-6 py-4 text-sm text-gray-300">{getTotalStock(product.id)}</td>
@@ -339,7 +521,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         )}
                         {activeTab === 'users' && (
                             <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-freshpodd-gray">
+                                <table className="min-w-full divide-y divide-freshpodd-gray/50">
                                     <thead className="bg-freshpodd-gray/30">
                                         <tr>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Name</th>
@@ -348,9 +530,9 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                                             <th className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
                                         </tr>
                                     </thead>
-                                    <tbody className="bg-freshpodd-blue divide-y divide-freshpodd-gray">
+                                    <tbody className="bg-freshpodd-blue/50 divide-y divide-freshpodd-gray/50">
                                         {users.map(user => (
-                                            <tr key={user.id}>
+                                            <tr key={user.id} className="hover:bg-freshpodd-gray/20 transition-colors">
                                                 <td className="px-6 py-4 text-sm font-medium text-white">{user.name}</td>
                                                 <td className="px-6 py-4 text-sm text-gray-300">{user.email}</td>
                                                 <td className="px-6 py-4 text-sm text-gray-300">{user.isAdmin ? 'Admin' : 'Customer'}</td>
@@ -365,7 +547,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         )}
                         {activeTab === 'quotes' && (
                              <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-freshpodd-gray">
+                                <table className="min-w-full divide-y divide-freshpodd-gray/50">
                                     <thead className="bg-freshpodd-gray/30">
                                         <tr>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Customer</th>
@@ -374,9 +556,9 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="bg-freshpodd-blue divide-y divide-freshpodd-gray">
+                                    <tbody className="bg-freshpodd-blue/50 divide-y divide-freshpodd-gray/50">
                                         {quoteRequests.map(quote => (
-                                            <tr key={quote.id}>
+                                            <tr key={quote.id} className="hover:bg-freshpodd-gray/20 transition-colors">
                                                 <td className="px-6 py-4 text-sm text-white">{quote.name}<div className="text-xs text-gray-500">{quote.id}</div></td>
                                                 <td className="px-6 py-4 text-sm text-gray-300">{quote.quantity}</td>
                                                 <td className="px-6 py-4 text-sm text-gray-300">{quote.estimatedQuote || 'N/A'}</td>
@@ -403,6 +585,15 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                     onUpdateStock={onUpdateWarehouseStock}
                 />
             )}
+            <style>{`
+                @keyframes fade-in {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fade-in {
+                    animation: fade-in 0.5s ease-out forwards;
+                }
+            `}</style>
         </div>
     );
 };
